@@ -135,6 +135,17 @@ export function NewAppointmentModal({
   }, [initialPatient])
 
   React.useEffect(() => {
+    if (!open) return
+    setSelectedDate(initialDate || new Date())
+    setSelectedTime(initialDate || null)
+  }, [initialDate, open])
+
+  React.useEffect(() => {
+    if (!open) return
+    setSelectedVet(initialVetId ? veterinarians.find(v => v.id === initialVetId) ?? null : null)
+  }, [initialVetId, veterinarians, open])
+
+  React.useEffect(() => {
     if (state && "ok" in state && state.ok) {
       onSuccess?.()
       // reset
