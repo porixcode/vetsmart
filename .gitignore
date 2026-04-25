@@ -1,0 +1,111 @@
+# =========================
+# 🖥️ SO & Editor / IDE
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+# Consejo: Si quieres versionar la configuración del VS Code del equipo, 
+# ignora solo .vscode/* y fuerza la inclusión de settings.json/extensions.json
+
+# =========================
+# 📦 Dependencias & Gestores de Paquetes
+# =========================
+node_modules/
+.bun/
+
+# ⚠️ Lockfiles: Versiona SOLO el del gestor que use tu proyecto.
+# Descomenta los que NO se utilicen:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+# bun.lockb
+
+# =========================
+# 🏗️ Build & Directorios de Salida (Next.js / TypeScript)
+# =========================
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+.turbo/
+
+# =========================
+# 🔐 Variables de Entorno
+# =========================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env*.local
+# Consejo: `.env*.local` ya cubre `.env.development.local`, `.env.production.local`, etc.
+
+# =========================
+# 🗄️ Base de Datos & ORM (Prisma)
+# =========================
+prisma/*.db
+prisma/*.db-journal
+prisma/migrations/dev/
+# Nota: `prisma/dev.db` se eliminó porque ya está cubierto por `prisma/*.db`
+
+# =========================
+# 📝 Logs & Depuración
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# 🧪 Testing & Cobertura
+# =========================
+coverage/
+.nyc_output/
+.jest/
+vitest.config.*.timestamp-*
+
+# =========================
+# 🐳 Docker & Overrides de Desarrollo
+# =========================
+docker-compose.override.yml
+.docker/
+
+# =========================
+# 🤖 Herramientas de IA & LLM (Configs, Caché & Sesiones)
+# =========================
+.claude/
+.claude-cache/
+.anthropic/
+.openai/
+.openai-cache/
+.deepseek/
+.deepseek-cache/
+.cursor/
+.cursorrules
+.vscode/ai/
+.codeium/
+.tabnine/
+.ai/
+.ai-cache/
+.ai-sessions/
+.llm/
+.llm-cache/
+
+# =========================
+# 🔒 Seguridad & Varios
+# =========================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.cache/
+.tmp/
