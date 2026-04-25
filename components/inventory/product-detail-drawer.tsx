@@ -8,43 +8,34 @@ import {
   Phone, Mail, Building2, TrendingDown, TrendingUp,
 } from "lucide-react"
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from "recharts"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  type Product,
+  type ProductView,
+  type MovementTypeLabel,
   categoryColors,
   statusConfig,
-} from "@/lib/data/inventory"
+} from "@/lib/types/inventory-view"
 import { cn } from "@/lib/utils"
 
 interface ProductDetailDrawerProps {
-  product: Product | null
-  isOpen: boolean
-  onClose: () => void
-  onRegisterMovement: (productId: string) => void
+  product:              ProductView | null
+  isOpen:               boolean
+  onClose:              () => void
+  onRegisterMovement:   (type: MovementTypeLabel, product: ProductView) => void
 }
 
-const CURRENCY = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 })
+const CURRENCY = new Intl.NumberFormat("es-CO", {
+  style: "currency", currency: "COP", maximumFractionDigits: 0,
+})
 
-function StatusDot({ status }: { status: Product["status"] }) {
+function StatusDot({ status }: { status: ProductView["status"] }) {
   const cfg = statusConfig[status]
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium", cfg.bg, cfg.text)}>
@@ -54,19 +45,29 @@ function StatusDot({ status }: { status: Product["status"] }) {
   )
 }
 
-export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMovement }: ProductDetailDrawerProps) {
+export function ProductDetailDrawer({
+  product,
+  isOpen,
+  onClose,
+  onRegisterMovement,
+}: ProductDetailDrawerProps) {
   if (!product) return null
 
   const catCfg = categoryColors[product.category]
-  const margin = ((product.salePrice - product.purchasePrice) / product.salePrice * 100).toFixed(1)
+  const margin = product.salePrice > 0
+    ? ((product.salePrice - product.purchasePrice) / product.salePrice * 100).toFixed(1)
+    : "0.0"
 
-  const chartData = product.stockHistory.map(p => ({
-    date: format(p.date, "d MMM", { locale: es }),
-    stock: p.stock,
-  })).filter((_, i) => i % 3 === 0) // thin to ~30 points
+  const chartData = product.stockHistory
+    .map(p => ({
+      date:  format(new Date(p.date), "d MMM", { locale: es }),
+      stock: p.stock,
+    }))
+    .filter((_, i) => i % 3 === 0)
 
-  const daysToExpiry = product.lots.length > 0
-    ? Math.ceil((product.lots[0].expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  const firstLot = product.lots[0]
+  const daysToExpiry = firstLot
+    ? Math.ceil((new Date(firstLot.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null
 
   return (
@@ -74,14 +75,14 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
       <div
         className={cn(
           "fixed inset-0 z-40 bg-black/20 transition-opacity duration-300",
-          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={onClose}
       />
       <div
         className={cn(
           "fixed right-0 top-0 bottom-0 z-50 flex w-[600px] flex-col border-l bg-background shadow-xl transition-transform duration-300",
-          isOpen ? "translate-x-0" : "translate-x-full"
+          isOpen ? "translate-x-0" : "translate-x-full",
         )}
       >
         {/* Header */}
@@ -117,24 +118,32 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
         <div className="flex-1 overflow-y-auto">
           <Tabs defaultValue="overview" className="h-full">
             <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-5 py-0 h-auto">
-              {["overview", "lotes", "movimientos", "proveedores", "comercial"].map(tab => (
+              {[
+                { value: "overview",    label: "Resumen" },
+                { value: "lotes",       label: "Lotes" },
+                { value: "movimientos", label: "Movimientos" },
+                { value: "proveedores", label: "Proveedores" },
+                { value: "comercial",   label: "Comercial" },
+              ].map(({ value, label }) => (
                 <TabsTrigger
-                  key={tab}
-                  value={tab}
-                  className="rounded-none border-b-2 border-transparent pb-3 pt-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none capitalize"
+                  key={value}
+                  value={value}
+                  className="rounded-none border-b-2 border-transparent pb-3 pt-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                 >
-                  {tab === "overview" ? "Resumen" : tab === "lotes" ? "Lotes" : tab === "movimientos" ? "Movimientos" : tab === "proveedores" ? "Proveedores" : "Comercial"}
+                  {label}
                 </TabsTrigger>
               ))}
             </TabsList>
 
             {/* RESUMEN */}
             <TabsContent value="overview" className="m-0 p-5 space-y-6">
-              {/* KPIs */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Stock actual</p>
-                  <p className={cn("text-2xl font-semibold tabular-nums", product.currentStock <= product.minimumStock && "text-amber-600")}>
+                  <p className={cn(
+                    "text-2xl font-semibold tabular-nums",
+                    product.currentStock <= product.minimumStock && "text-amber-600",
+                  )}>
                     {product.currentStock}
                   </p>
                   <p className="text-xs text-muted-foreground">{product.unit}</p>
@@ -151,15 +160,17 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
                 </div>
               </div>
 
-              {/* Alerts */}
-              {daysToExpiry !== null && daysToExpiry <= 90 && (
+              {firstLot && daysToExpiry !== null && daysToExpiry <= 90 && (
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
                   <AlertTriangle className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} />
-                  <span>Lote <span className="font-medium">{product.lots[0].lotNumber}</span> vence en <span className="font-medium">{daysToExpiry} días</span> ({format(product.lots[0].expiryDate, "d 'de' MMMM, yyyy", { locale: es })})</span>
+                  <span>
+                    Lote <span className="font-medium">{firstLot.lotNumber}</span> vence en{" "}
+                    <span className="font-medium">{daysToExpiry} días</span>{" "}
+                    ({format(new Date(firstLot.expiryDate), "d 'de' MMMM, yyyy", { locale: es })})
+                  </span>
                 </div>
               )}
 
-              {/* Stock chart */}
               <div>
                 <p className="mb-3 text-sm font-medium">Nivel de stock — últimos 90 días</p>
                 <div className="h-[180px]">
@@ -170,7 +181,7 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
                         dataKey="date"
                         tick={{ fontSize: 10 }}
                         tickLine={false}
-                        interval={Math.floor(chartData.length / 5)}
+                        interval={Math.max(0, Math.floor(chartData.length / 5))}
                       />
                       <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                       <Tooltip
@@ -184,7 +195,7 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
                         label={{ value: "Mínimo", fontSize: 10, fill: "#92400E" }}
                       />
                       <Line
-                        type="monotone"
+                        type="stepAfter"
                         dataKey="stock"
                         stroke="#2563EB"
                         strokeWidth={2}
@@ -196,15 +207,14 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
                 </div>
               </div>
 
-              {/* Info grid */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">Marca</p>
-                  <p className="font-medium">{product.brand}</p>
+                  <p className="font-medium">{product.brand ?? "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Ubicación</p>
-                  <p className="font-medium">{product.location}</p>
+                  <p className="font-medium">{product.location ?? "—"}</p>
                 </div>
                 {product.invima && (
                   <div>
@@ -218,14 +228,13 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
                 </div>
               </div>
 
-              {/* Documentation */}
               <div>
                 <p className="mb-2 text-sm font-medium">Documentación</p>
                 <div className="space-y-1">
                   {[
                     { icon: FileText, label: "Ficha técnica" },
-                    { icon: Shield, label: "Registro INVIMA" },
-                    { icon: Beaker, label: "Hoja de seguridad (MSDS)" },
+                    { icon: Shield,   label: "Registro INVIMA" },
+                    { icon: Beaker,   label: "Hoja de seguridad (MSDS)" },
                   ].map(({ icon: Icon, label }) => (
                     <button
                       key={label}
@@ -244,7 +253,7 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
             <TabsContent value="lotes" className="m-0 p-5">
               <p className="mb-4 text-sm font-medium">Lotes activos ({product.lots.length})</p>
               {product.lots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay lotes activos registrados.</p>
+                <p className="text-sm text-muted-foreground">No hay lotes registrados.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -257,7 +266,9 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
                   </TableHeader>
                   <TableBody>
                     {product.lots.map(lot => {
-                      const days = Math.ceil((lot.expiryDate.getTime() - Date.now()) / 86400000)
+                      const days = Math.ceil(
+                        (new Date(lot.expiryDate).getTime() - Date.now()) / 86400000
+                      )
                       const isExpiringSoon = days <= 90
                       return (
                         <TableRow key={lot.id}>
@@ -265,13 +276,15 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
                           <TableCell className="text-right tabular-nums font-medium">{lot.quantity}</TableCell>
                           <TableCell>
                             <span className={cn("text-sm", isExpiringSoon && "text-amber-600 font-medium")}>
-                              {format(lot.expiryDate, "d MMM yyyy", { locale: es })}
+                              {format(new Date(lot.expiryDate), "d MMM yyyy", { locale: es })}
                             </span>
                             {isExpiringSoon && (
                               <p className="text-xs text-amber-600">{days} días</p>
                             )}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{lot.supplier}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {lot.supplierName ?? "—"}
+                          </TableCell>
                         </TableRow>
                       )
                     })}
@@ -284,82 +297,97 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
             <TabsContent value="movimientos" className="m-0 p-5">
               <p className="mb-4 text-sm font-medium">Últimos movimientos ({product.movements.length})</p>
               <div className="space-y-2">
-                {[...product.movements]
-                  .sort((a, b) => b.date.getTime() - a.date.getTime())
-                  .slice(0, 20)
-                  .map(mov => (
-                    <div key={mov.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={cn(
-                          "flex size-7 items-center justify-center rounded-full shrink-0",
-                          mov.type === "Entrada" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                        )}>
-                          {mov.type === "Entrada"
-                            ? <ArrowUp className="size-3.5" strokeWidth={2} />
-                            : <ArrowDown className="size-3.5" strokeWidth={2} />
-                          }
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium">{mov.type}</span>
-                            <Badge variant="outline" className="text-xs px-1.5 py-0">{mov.reason}</Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {mov.performedBy}
-                            {mov.reference && <span> · Ref: {mov.reference}</span>}
-                          </p>
-                        </div>
+                {product.movements.slice(0, 20).map(mov => (
+                  <div key={mov.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn(
+                        "flex size-7 items-center justify-center rounded-full shrink-0",
+                        mov.type === "Entrada" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600",
+                      )}>
+                        {mov.type === "Entrada"
+                          ? <ArrowUp   className="size-3.5" strokeWidth={2} />
+                          : <ArrowDown className="size-3.5" strokeWidth={2} />
+                        }
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className={cn(
-                          "text-sm font-semibold tabular-nums",
-                          mov.type === "Entrada" ? "text-green-600" : "text-red-600"
-                        )}>
-                          {mov.type === "Entrada" ? "+" : "-"}{mov.quantity}
-                        </p>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-medium">{mov.type}</span>
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">{mov.reason}</Badge>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          {format(mov.date, "d MMM yyyy", { locale: es })}
-                        </p>
-                        <p className="text-xs text-muted-foreground tabular-nums">
-                          {mov.stockBefore} → {mov.stockAfter}
+                          {mov.performedBy}
+                          {mov.reference && <span> · Ref: {mov.reference}</span>}
                         </p>
                       </div>
                     </div>
-                  ))}
+                    <div className="text-right shrink-0">
+                      <p className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        mov.type === "Entrada" ? "text-green-600" : "text-red-600",
+                      )}>
+                        {mov.type === "Entrada" ? "+" : "-"}{mov.quantity}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(mov.date), "d MMM yyyy", { locale: es })}
+                      </p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {mov.stockBefore} → {mov.stockAfter}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {product.movements.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Sin movimientos registrados.</p>
+                )}
               </div>
             </TabsContent>
 
             {/* PROVEEDORES */}
             <TabsContent value="proveedores" className="m-0 p-5 space-y-4">
               <p className="text-sm font-medium">Proveedores ({product.suppliers.length})</p>
-              {product.suppliers.map(s => (
-                <div key={s.id} className="rounded-lg border p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="size-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
-                      <p className="font-medium text-sm">{s.name}</p>
+              {product.suppliers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin proveedores registrados.</p>
+              ) : (
+                product.suppliers.map(s => (
+                  <div key={s.id} className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="size-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
+                        <p className="font-medium text-sm">{s.name}</p>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums">
+                        {CURRENCY.format(s.unitPrice)} / {product.unit}
+                      </span>
                     </div>
-                    <span className="text-sm font-semibold tabular-nums">{CURRENCY.format(s.unitPrice)} / {product.unit}</span>
-                  </div>
-                  <div className="space-y-1.5 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs">Contacto:</span>
-                      <span>{s.contact}</span>
+                    <div className="space-y-1.5 text-sm text-muted-foreground">
+                      {s.contact && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">Contacto:</span>
+                          <span>{s.contact}</span>
+                        </div>
+                      )}
+                      {s.phone && (
+                        <a href={`tel:${s.phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                          <Phone className="size-3.5" strokeWidth={1.5} />
+                          {s.phone}
+                        </a>
+                      )}
+                      {s.email && (
+                        <a href={`mailto:${s.email}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                          <Mail className="size-3.5" strokeWidth={1.5} />
+                          {s.email}
+                        </a>
+                      )}
+                      {s.lastPurchaseDate && (
+                        <p className="text-xs">
+                          Última compra:{" "}
+                          {format(new Date(s.lastPurchaseDate), "d 'de' MMMM, yyyy", { locale: es })}
+                        </p>
+                      )}
                     </div>
-                    <a href={`tel:${s.phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">
-                      <Phone className="size-3.5" strokeWidth={1.5} />
-                      {s.phone}
-                    </a>
-                    <a href={`mailto:${s.email}`} className="flex items-center gap-2 hover:text-primary transition-colors">
-                      <Mail className="size-3.5" strokeWidth={1.5} />
-                      {s.email}
-                    </a>
-                    {s.lastPurchaseDate && (
-                      <p className="text-xs">Última compra: {format(s.lastPurchaseDate, "d 'de' MMMM, yyyy", { locale: es })}</p>
-                    )}
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </TabsContent>
 
             {/* COMERCIAL */}
@@ -380,7 +408,7 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
                   <div className="flex items-center gap-1">
                     <p className="text-xl font-semibold tabular-nums">{margin}%</p>
                     {parseFloat(margin) > 40
-                      ? <TrendingUp className="size-4 text-green-500" strokeWidth={1.5} />
+                      ? <TrendingUp   className="size-4 text-green-500" strokeWidth={1.5} />
                       : <TrendingDown className="size-4 text-amber-500" strokeWidth={1.5} />
                     }
                   </div>
@@ -396,10 +424,16 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
               <div className="rounded-lg border p-4 space-y-2 text-sm">
                 <p className="font-medium">Sugerido de reorden</p>
                 <p className="text-muted-foreground">
-                  Cantidad recomendada: <span className="font-medium text-foreground">{product.reorderQuantity} {product.unit}</span>
+                  Cantidad recomendada:{" "}
+                  <span className="font-medium text-foreground">
+                    {product.reorderQuantity} {product.unit}
+                  </span>
                 </p>
                 <p className="text-muted-foreground">
-                  Costo estimado: <span className="font-medium text-foreground">{CURRENCY.format(product.reorderQuantity * product.purchasePrice)}</span>
+                  Costo estimado:{" "}
+                  <span className="font-medium text-foreground">
+                    {CURRENCY.format(product.reorderQuantity * product.purchasePrice)}
+                  </span>
                 </p>
               </div>
             </TabsContent>
@@ -408,11 +442,11 @@ export function ProductDetailDrawer({ product, isOpen, onClose, onRegisterMoveme
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t p-4">
-          <Button variant="outline" size="sm" onClick={() => onRegisterMovement(product.id)}>
+          <Button variant="outline" size="sm" onClick={() => onRegisterMovement("Salida", product)}>
             <ArrowDown className="mr-2 size-4" strokeWidth={1.5} />
             Registrar salida
           </Button>
-          <Button size="sm" onClick={() => onRegisterMovement(product.id)}>
+          <Button size="sm" onClick={() => onRegisterMovement("Entrada", product)}>
             <ArrowUp className="mr-2 size-4" strokeWidth={1.5} />
             Registrar entrada
           </Button>

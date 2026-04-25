@@ -1,75 +1,131 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, Search } from "lucide-react"
+import { AlertTriangle, Loader2, Search } from "lucide-react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { products, type Product, type MovementType, type MovementReason } from "@/lib/data/inventory"
+import {
+  registerStockMovementAction,
+  searchProductsAction,
+} from "@/lib/actions/inventory"
+import type { ProductView, MovementTypeLabel, MovementReasonLabel } from "@/lib/types/inventory-view"
 
 interface MovementModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  type: MovementType
-  initialProductId?: string
+  open:            boolean
+  onOpenChange:    (open: boolean) => void
+  type:            MovementTypeLabel
+  initialProduct?: ProductView
+  onSuccess?:      () => void
 }
 
-const REASONS_BY_TYPE: Record<MovementType, MovementReason[]> = {
-  Salida: ["Cita", "Cirugía", "Venta directa", "Daño", "Vencimiento", "Otro"],
+const REASONS_BY_TYPE: Record<MovementTypeLabel, MovementReasonLabel[]> = {
+  Salida:  ["Cita", "Cirugía", "Venta directa", "Daño", "Vencimiento", "Otro"],
   Entrada: ["Compra", "Otro"],
 }
 
-export function MovementModal({ open, onOpenChange, type, initialProductId }: MovementModalProps) {
-  const [productSearch, setProductSearch] = React.useState("")
-  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(
-    initialProductId ? products.find(p => p.id === initialProductId) ?? null : null
-  )
-  const [showProductList, setShowProductList] = React.useState(false)
-  const [quantity, setQuantity] = React.useState("")
-  const [reason, setReason] = React.useState<MovementReason | "">("")
+export function MovementModal({
+  open,
+  onOpenChange,
+  type,
+  initialProduct,
+  onSuccess,
+}: MovementModalProps) {
+  const [selectedProduct, setSelectedProduct] = React.useState<ProductView | null>(null)
+  const [productSearch,   setProductSearch]   = React.useState("")
+  const [searchResults,   setSearchResults]   = React.useState<ProductView[]>([])
+  const [showResults,     setShowResults]     = React.useState(false)
+  const [isSearching,     setIsSearching]     = React.useState(false)
+
+  const [quantity,  setQuantity]  = React.useState("")
+  const [reason,    setReason]    = React.useState<MovementReasonLabel | "">("")
   const [reference, setReference] = React.useState("")
-  const [notes, setNotes] = React.useState("")
+  const [notes,     setNotes]     = React.useState("")
 
-  const filteredProducts = productSearch.length >= 2
-    ? products.filter(p =>
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        p.code.toLowerCase().includes(productSearch.toLowerCase())
-      ).slice(0, 6)
-    : []
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [error,        setError]        = React.useState<string | null>(null)
 
-  const qty = parseInt(quantity) || 0
+  // Reset all state when modal opens
+  React.useEffect(() => {
+    if (open) {
+      setSelectedProduct(initialProduct ?? null)
+      setProductSearch("")
+      setSearchResults([])
+      setShowResults(false)
+      setQuantity("")
+      setReason("")
+      setReference("")
+      setNotes("")
+      setError(null)
+    }
+  }, [open, initialProduct])
+
+  // Debounced product search
+  React.useEffect(() => {
+    if (selectedProduct || productSearch.length < 2) {
+      setSearchResults([])
+      setShowResults(false)
+      return
+    }
+    setIsSearching(true)
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchProductsAction(productSearch)
+        setSearchResults(results)
+        setShowResults(true)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [productSearch, selectedProduct])
+
+  const qty        = parseInt(quantity) || 0
   const stockAfter = selectedProduct
     ? type === "Salida"
       ? selectedProduct.currentStock - qty
       : selectedProduct.currentStock + qty
     : 0
 
-  const stockWarning = selectedProduct &&
-    type === "Salida" &&
-    qty > 0 &&
-    stockAfter <= selectedProduct.minimumStock
+  const stockWarning = selectedProduct && type === "Salida" && qty > 0 &&
+    stockAfter <= selectedProduct.minimumStock && stockAfter >= 0
 
-  const stockError = selectedProduct &&
-    type === "Salida" &&
-    qty > selectedProduct.currentStock
+  const stockError = selectedProduct && type === "Salida" && qty > selectedProduct.currentStock
 
-  const canSubmit = selectedProduct && qty > 0 && reason && !stockError
+  const canSubmit = !isSubmitting && selectedProduct && qty > 0 && reason && !stockError
 
   const showReference = reason === "Cita" || reason === "Cirugía"
+
+  async function handleSubmit() {
+    if (!canSubmit || !selectedProduct || !reason) return
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const result = await registerStockMovementAction(
+        selectedProduct.id,
+        type,
+        reason,
+        qty,
+        showReference && reference.trim() ? reference.trim() : null,
+        notes.trim() || null,
+      )
+      if (result.ok) {
+        onOpenChange(false)
+        onSuccess?.()
+      } else if ("error" in result) {
+        setError(result.error)
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -81,7 +137,7 @@ export function MovementModal({ open, onOpenChange, type, initialProductId }: Mo
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* Product search */}
+          {/* Product */}
           <div className="space-y-2">
             <Label>Producto</Label>
             {selectedProduct ? (
@@ -89,7 +145,10 @@ export function MovementModal({ open, onOpenChange, type, initialProductId }: Mo
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{selectedProduct.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {selectedProduct.code} · Stock actual: <span className="font-medium tabular-nums">{selectedProduct.currentStock} {selectedProduct.unit}</span>
+                    {selectedProduct.code} · Stock actual:{" "}
+                    <span className="font-medium tabular-nums">
+                      {selectedProduct.currentStock} {selectedProduct.unit}
+                    </span>
                   </p>
                   {selectedProduct.lots.length > 0 && (
                     <p className="text-xs text-muted-foreground">
@@ -101,7 +160,7 @@ export function MovementModal({ open, onOpenChange, type, initialProductId }: Mo
                   variant="ghost"
                   size="sm"
                   className="shrink-0 text-xs"
-                  onClick={() => { setSelectedProduct(null); setProductSearch("") }}
+                  onClick={() => setSelectedProduct(null)}
                 >
                   Cambiar
                 </Button>
@@ -109,26 +168,37 @@ export function MovementModal({ open, onOpenChange, type, initialProductId }: Mo
             ) : (
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" strokeWidth={1.5} />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground animate-spin" strokeWidth={1.5} />
+                )}
                 <Input
                   placeholder="Buscar por nombre o código..."
                   value={productSearch}
                   className="pl-9"
-                  onChange={e => { setProductSearch(e.target.value); setShowProductList(true) }}
-                  onFocus={() => setShowProductList(true)}
+                  onChange={e => setProductSearch(e.target.value)}
+                  onFocus={() => searchResults.length > 0 && setShowResults(true)}
                 />
-                {showProductList && filteredProducts.length > 0 && (
+                {showResults && searchResults.length > 0 && (
                   <div className="absolute top-full z-20 mt-1 w-full rounded-lg border border-border bg-background shadow-lg">
-                    {filteredProducts.map(p => (
+                    {searchResults.map(p => (
                       <button
                         key={p.id}
                         className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-muted transition-colors"
-                        onClick={() => { setSelectedProduct(p); setProductSearch(""); setShowProductList(false) }}
+                        onClick={() => {
+                          setSelectedProduct(p)
+                          setProductSearch("")
+                          setShowResults(false)
+                        }}
                       >
                         <div>
                           <p className="font-medium">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">{p.code} · {p.brand}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {p.code} · {p.brand ?? "—"}
+                          </p>
                         </div>
-                        <span className={`ml-3 shrink-0 text-xs font-medium tabular-nums ${p.currentStock <= p.minimumStock ? "text-amber-600" : "text-muted-foreground"}`}>
+                        <span className={`ml-3 shrink-0 text-xs font-medium tabular-nums ${
+                          p.currentStock <= p.minimumStock ? "text-amber-600" : "text-muted-foreground"
+                        }`}>
                           {p.currentStock} {p.unit}
                         </span>
                       </button>
@@ -153,7 +223,8 @@ export function MovementModal({ open, onOpenChange, type, initialProductId }: Mo
             />
             {stockError && (
               <p className="text-xs text-destructive">
-                Stock insuficiente. Disponible: {selectedProduct?.currentStock} {selectedProduct?.unit}
+                Stock insuficiente. Disponible: {selectedProduct?.currentStock}{" "}
+                {selectedProduct?.unit}
               </p>
             )}
             {selectedProduct && qty > 0 && !stockError && (
@@ -166,7 +237,10 @@ export function MovementModal({ open, onOpenChange, type, initialProductId }: Mo
           {/* Reason */}
           <div className="space-y-2">
             <Label>Motivo</Label>
-            <Select value={reason} onValueChange={v => { setReason(v as MovementReason); setReference("") }}>
+            <Select
+              value={reason}
+              onValueChange={v => { setReason(v as MovementReasonLabel); setReference("") }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar motivo" />
               </SelectTrigger>
@@ -178,7 +252,7 @@ export function MovementModal({ open, onOpenChange, type, initialProductId }: Mo
             </Select>
           </div>
 
-          {/* Reference (depends on reason) */}
+          {/* Reference */}
           {showReference && (
             <div className="space-y-2">
               <Label>{reason === "Cita" ? "N° de cita" : "N° de cirugía"}</Label>
@@ -209,17 +283,28 @@ export function MovementModal({ open, onOpenChange, type, initialProductId }: Mo
               <div>
                 <p className="font-medium">Stock bajo el mínimo</p>
                 <p className="text-xs">
-                  Después de este movimiento el stock ({stockAfter}) quedará por debajo del mínimo ({selectedProduct?.minimumStock} {selectedProduct?.unit}).
-                  Considere generar una orden de compra.
+                  Después de este movimiento el stock ({stockAfter}) quedará por debajo del mínimo
+                  ({selectedProduct?.minimumStock} {selectedProduct?.unit}).
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Server error */}
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} />
+              <p>{error}</p>
             </div>
           )}
         </div>
 
         <div className="flex justify-end gap-2 border-t pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button disabled={!canSubmit} onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            Cancelar
+          </Button>
+          <Button disabled={!canSubmit} onClick={handleSubmit}>
+            {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" strokeWidth={1.5} />}
             Registrar {type === "Entrada" ? "entrada" : "salida"}
           </Button>
         </div>
