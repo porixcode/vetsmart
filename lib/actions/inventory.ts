@@ -92,9 +92,9 @@ export async function registerStockMovementAction(
         },
       })
 
-      await tx.auditLog.create({
-        data: {
-          userId:      user.id,
+        await tx.auditLog.create({
+          data: {
+            userId:      user.id || null,
           actionType:  "UPDATE",
           module:      "Inventario",
           targetId:    input.productId,
@@ -158,7 +158,7 @@ export async function createProduct(
 
     await prisma.auditLog.create({
       data: {
-        userId:      user.id,
+        userId:      user.id || null,
         actionType:  "CREATE",
         module:      "Inventario",
         targetId:    product.id,
@@ -214,10 +214,10 @@ export async function updateProduct(
 
     await prisma.auditLog.create({
       data: {
-        userId:      user.id,
-        actionType:  "UPDATE",
-        module:      "Inventario",
-        targetId:    product.id,
+        userId: user.id || null,
+        actionType: "UPDATE",
+        module: "Inventario",
+        targetId: product.id,
         description: `Actualizó producto ${product.name}`,
       },
     })
@@ -238,7 +238,7 @@ export async function deleteProduct(id: string): Promise<InventoryActionState> {
     })
     await prisma.auditLog.create({
       data: {
-        userId: user.id, actionType: "DELETE", module: "Inventario",
+        userId: user.id || null, actionType: "DELETE", module: "Inventario",
         targetId: product.id, description: `Eliminó producto ${product.name}`,
       },
     })
