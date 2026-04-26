@@ -5,7 +5,6 @@ import {
   CalendarDays, Package, Stethoscope, Users, DollarSign, Syringe, XCircle, Truck,
   FileText, Download, Plus, ChevronRight, Clock, Filter, Mail, Share2,
 } from "lucide-react"
-import { reportTemplates } from "@/lib/data/reports"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -45,6 +44,17 @@ const SECTION_OPTIONS: Record<string, string[]> = {
   t7: ["Tasa de cancelación", "Motivos", "Patrones horarios", "Impacto económico"],
   t8: ["Órdenes de compra", "Proveedores activos", "Comparativo precios", "Evaluación proveedor"],
 }
+
+const reportTemplates = [
+  { id: "t1", icon: "CalendarDays",  name: "Atenciones por período",            desc: "Total de citas, cancelaciones, no asistencias y tendencias",  lastRun: "hace 1 día" },
+  { id: "t2", icon: "Package",       name: "Inventario y consumo",               desc: "Movimientos de stock, productos críticos y vencimientos",      lastRun: "hace 3 días" },
+  { id: "t3", icon: "Stethoscope",   name: "Desempeño por veterinario",          desc: "Atenciones, ingresos, tiempo promedio y calificaciones",       lastRun: "hace 1 semana" },
+  { id: "t4", icon: "Users",         name: "Pacientes nuevos vs recurrentes",    desc: "Tasa de retención, cohortes y frecuencia de visitas",          lastRun: "hace 2 días" },
+  { id: "t5", icon: "DollarSign",    name: "Estado financiero del período",      desc: "Ingresos, costos, márgenes y comparación vs período anterior", lastRun: "hace 5 días" },
+  { id: "t6", icon: "Syringe",       name: "Vacunación y desparasitación",       desc: "Cumplimiento del calendario sanitario y alertas de vencimiento",lastRun: "hace 4 días" },
+  { id: "t7", icon: "XCircle",       name: "Cancelaciones y no-asistencias",     desc: "Tasa de cancelación, motivos y patrones temporales",           lastRun: "hace 1 semana" },
+  { id: "t8", icon: "Truck",         name: "Proveedores y compras",              desc: "Órdenes de compra, precios y evaluación de proveedores",       lastRun: "hace 2 semanas" },
+]
 
 export function GeneratorTab() {
   const [selectedTemplate, setSelectedTemplate] = React.useState<string | null>(null)
