@@ -1,9 +1,10 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import bcrypt from "bcryptjs"
+import { PrismaAdapter } from "@auth/prisma-adapter"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
+import { rateLimit } from "@/lib/rate-limit"
 import { authConfig } from "./auth.config"
 
 const LoginSchema = z.object({
@@ -21,11 +22,17 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         email:    { label: "Email",      type: "email" },
         password: { label: "Contraseña", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         const parsed = LoginSchema.safeParse(credentials)
         if (!parsed.success) return null
 
         const { email, password } = parsed.data
+
+        const ip = req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim()
+                ?? req?.headers?.get("x-real-ip")
+                ?? email
+        const rl = rateLimit(`login:${ip}`, 5)
+        if (!rl.ok) return null
         const user = await prisma.user.findUnique({ where: { email } })
         if (!user || user.deletedAt) return null
         if (user.status !== "ACTIVE") return null

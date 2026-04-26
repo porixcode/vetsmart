@@ -6,7 +6,8 @@ export async function POST(req: Request) {
   const expected   = `Bearer ${process.env.CRON_SECRET}`
 
   if (!authHeader || authHeader !== expected) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    console.error(`[cron] auth=${authHeader?.slice(0, 40)} expected=Bearer ${process.env.CRON_SECRET?.slice(0, 10)}...`)
+    return NextResponse.json({ error: "No autorizado", debug: !process.env.CRON_SECRET ? "CRON_SECRET no cargado en entorno" : "Token inválido" }, { status: 401 })
   }
 
   try {

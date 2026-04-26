@@ -41,6 +41,7 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      CRON_SECRET: ${CRON_SECRET}
     ports:
       - "${APP_HOST_PORT:-3000}:3000"
     networks:
