@@ -52,3 +52,20 @@ export const CreateClinicalRecordSchema = z.object({
 })
 
 export type CreateClinicalRecordInput = z.infer<typeof CreateClinicalRecordSchema>
+
+export const ClinicalRecordSearchSchema = z.object({
+  q:              z.string().optional().default(""),
+  veterinarianId: z.string().optional().default(""),
+  type:           z.string().optional().default(""),
+  species:        z.string().optional().default(""),
+  status:         z.string().optional().default(""),
+  hasAttachments: z.coerce.boolean().optional().default(false),
+  hasFollowUp:    z.coerce.boolean().optional().default(false),
+  dateRange:      z.coerce.number().optional().default(90),
+  page:           z.coerce.number().int().positive().optional().default(1),
+  pageSize:       z.coerce.number().int().positive().max(100).optional().default(50),
+})
+export type ClinicalRecordSearch = z.infer<typeof ClinicalRecordSearchSchema>
+
+export const ATTENTION_TYPES = Object.keys(ATTENTION_LABEL_TO_ENUM)
+export const RECORD_STATUSES = Object.keys(RECORD_STATUS_LABEL_TO_ENUM)

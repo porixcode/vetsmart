@@ -7,30 +7,24 @@ import {
   X, Copy, Mail, Phone, ShieldCheck, ShieldOff, Check, LogIn, LogOut,
   Plus, Pencil, Trash2, Eye, Download, Monitor, Smartphone, Tablet, MapPin,
 } from "lucide-react"
-import {
-  roleConfig, statusConfig, PERMISSIONS_BY_ROLE, ALL_PERMISSIONS,
-  getUserActivity, getUserSessions, type SystemUser, type ActionType, type DeviceType,
-} from "@/lib/data/users"
+import type { UserView, AuditLogEntry, UserRoleLabel } from "@/lib/types/users-view"
+import { ROLE_CONFIG, STATUS_CONFIG, ALL_PERMISSIONS, PERMISSIONS_BY_ROLE } from "@/lib/types/users-view"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 interface UserDetailDrawerProps {
-  user: SystemUser | null
+  user: UserView | null
   isOpen: boolean
   onClose: () => void
+  onEdit: (user: UserView) => void
+  onDelete: (user: UserView) => void
+  onStatusToggle: (user: UserView) => void
+  onResetPassword: (user: UserView) => void
 }
 
 type DrawerTab = "info" | "permisos" | "actividad" | "sesiones"
 
-const ACTION_ICONS: Record<ActionType, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  login: LogIn, logout: LogOut, create: Plus, update: Pencil, delete: Trash2, view: Eye, export: Download,
-}
-const ACTION_COLORS: Record<ActionType, string> = {
-  login:"text-emerald-500 bg-emerald-50", logout:"text-gray-500 bg-gray-100",
-  create:"text-blue-500 bg-blue-50", update:"text-amber-500 bg-amber-50",
-  delete:"text-red-500 bg-red-50", view:"text-muted-foreground bg-muted", export:"text-violet-500 bg-violet-50",
-}
-function DeviceIcon({ type }: { type: DeviceType }) {
+function DeviceIcon({ type }: { type: string | null }) {
   if (type === "mobile") return <Smartphone className="size-4" strokeWidth={1.5} />
   if (type === "tablet") return <Tablet className="size-4" strokeWidth={1.5} />
   return <Monitor className="size-4" strokeWidth={1.5} />
@@ -64,7 +58,7 @@ function SectionHeader({ title }: { title: string }) {
   )
 }
 
-export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProps) {
+export function UserDetailDrawer({ user, isOpen, onClose, onEdit, onDelete, onStatusToggle, onResetPassword }: UserDetailDrawerProps) {
   const [tab, setTab] = React.useState<DrawerTab>("info")
 
   React.useEffect(() => {
@@ -77,12 +71,12 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
 
   if (!user) return null
 
-  const rc = roleConfig[user.role]
-  const sc = statusConfig[user.status]
+  const rc = ROLE_CONFIG[user.role]
+  const sc = STATUS_CONFIG[user.status]
   const initials = user.name.split(" ").slice(0, 2).map(w => w[0]).join("")
-  const activity = getUserActivity(user.id)
-  const sessions = getUserSessions(user.id)
   const perms = PERMISSIONS_BY_ROLE[user.role]
+
+  const genderLabel = user.gender === "MASCULINO" ? "Masculino" : user.gender === "FEMENINO" ? "Femenino" : null
 
   return (
     <>
@@ -91,7 +85,6 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
         "fixed inset-y-0 right-0 z-50 flex w-[560px] max-w-full flex-col bg-background border-l border-border shadow-xl transition-transform duration-300",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}>
-        {/* ── Header ── */}
         <div className="border-b border-border px-5 py-4 space-y-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
@@ -129,10 +122,9 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
             </div>
           </div>
 
-          {/* Drawer tabs */}
           <div className="flex border-b -mb-4 -mx-5 px-5">
             {(["info","permisos","actividad","sesiones"] as DrawerTab[]).map(t => {
-              const labels: Record<DrawerTab, string> = { info:"Información", permisos:"Permisos", actividad:"Actividad", sesiones:`Sesiones${sessions.length > 0 ? ` (${sessions.length})` : ""}` }
+              const labels: Record<DrawerTab, string> = { info:"Información", permisos:"Permisos", actividad:"Actividad", sesiones:"Sesiones" }
               return (
                 <button key={t} onClick={() => setTab(t)} className={cn(
                   "px-4 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px",
@@ -145,29 +137,26 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
           </div>
         </div>
 
-        {/* ── Body ── */}
         <div className="flex-1 overflow-y-auto">
-
-          {/* TAB: Información */}
           {tab === "info" && (
             <div className="p-5 space-y-1">
               <SectionHeader title="Datos personales" />
               <dl>
                 <InfoRow label="Nombre completo" value={user.name} />
-                <InfoRow label="Cédula" value={<span className="font-mono">{user.cedula}</span>} />
-                <InfoRow label="Fecha de nacimiento" value={format(user.birthDate, "d 'de' MMMM 'de' yyyy", { locale: es })} />
-                <InfoRow label="Género" value={user.gender} />
+                <InfoRow label="Cédula" value={<span className="font-mono">{user.cedula || "—"}</span>} />
+                <InfoRow label="Fecha de nacimiento" value={user.birthDate ? format(user.birthDate, "d 'de' MMMM 'de' yyyy", { locale: es }) : "—"} />
+                <InfoRow label="Género" value={genderLabel ?? "—"} />
                 <InfoRow label="Teléfono" value={<span className="flex items-center gap-1">{user.phone}<CopyButton value={user.phone} /></span>} />
-                <InfoRow label="Dirección" value={user.address} />
+                <InfoRow label="Dirección" value={user.address ?? "—"} />
               </dl>
 
               {user.role === "Veterinario" && (
                 <>
                   <SectionHeader title="Datos profesionales" />
                   <dl>
-                    <InfoRow label="Cédula profesional" value={<span className="font-mono">{user.cedulaProfesional}</span>} />
+                    <InfoRow label="Cédula profesional" value={<span className="font-mono">{user.cedulaProfesional ?? "—"}</span>} />
                     <InfoRow label="Universidad" value={user.universidad ?? "—"} />
-                    <InfoRow label="Año de graduación" value={user.graduationYear ?? "—"} />
+                    <InfoRow label="Año de graduación" value={user.graduationYear?.toString() ?? "—"} />
                     <InfoRow label="Especialidad" value={user.specialty ?? "—"} />
                   </dl>
                 </>
@@ -176,33 +165,23 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
               <SectionHeader title="Datos del sistema" />
               <dl>
                 <InfoRow label="Cuenta creada" value={format(user.createdAt, "d MMM yyyy", { locale: es })} />
-                <InfoRow label="Creado por" value={user.createdBy} />
-                <InfoRow label="Último acceso" value={user.status === "Pendiente" ? "Sin acceso" : formatDistanceToNow(user.lastActivity, { locale: es, addSuffix: true })} />
-                <InfoRow label="IP último acceso" value={<span className="font-mono text-[11px]">{user.lastIp}</span>} />
+                <InfoRow label="Creado por" value={user.createdByName ?? "Sistema"} />
+                <InfoRow label="Último acceso" value={user.status === "Pendiente" || !user.lastActivityAt ? "Sin acceso" : formatDistanceToNow(user.lastActivityAt, { locale: es, addSuffix: true })} />
+                <InfoRow label="IP último acceso" value={<span className="font-mono text-[11px]">{user.lastIp ?? "—"}</span>} />
                 <InfoRow label="Autenticación 2FA" value={
                   user.twoFactorEnabled
                     ? <span className="flex items-center gap-1 text-emerald-600"><ShieldCheck className="size-3.5" strokeWidth={1.5} />Habilitada</span>
                     : <span className="flex items-center gap-1 text-muted-foreground"><ShieldOff className="size-3.5" strokeWidth={1.5} />Deshabilitada</span>
                 } />
               </dl>
-
-              <SectionHeader title="Configuración" />
-              <dl>
-                <InfoRow label="Idioma" value={user.language} />
-                <InfoRow label="Zona horaria" value={user.timezone} />
-                <InfoRow label="Notif. email" value={<span className={user.notifications.email ? "text-emerald-600" : "text-muted-foreground"}>{user.notifications.email ? "Habilitadas" : "Deshabilitadas"}</span>} />
-                <InfoRow label="Notif. SMS" value={<span className={user.notifications.sms ? "text-emerald-600" : "text-muted-foreground"}>{user.notifications.sms ? "Habilitadas" : "Deshabilitadas"}</span>} />
-                <InfoRow label="Notif. push" value={<span className={user.notifications.push ? "text-emerald-600" : "text-muted-foreground"}>{user.notifications.push ? "Habilitadas" : "Deshabilitadas"}</span>} />
-              </dl>
             </div>
           )}
 
-          {/* TAB: Permisos */}
           {tab === "permisos" && (
             <div className="p-5">
               <div className={cn("rounded-lg p-3 mb-4", rc.bg)}>
                 <p className={cn("text-xs font-semibold", rc.text)}>{user.role}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{roleConfig[user.role].description}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{rc.description}</p>
               </div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">Permisos efectivos</p>
               <div className="space-y-4">
@@ -225,92 +204,146 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
                   )
                 })}
               </div>
-              <div className="mt-4 rounded-lg border border-dashed border-border p-3 text-center">
-                <p className="text-xs text-muted-foreground">No hay permisos personalizados para este usuario.</p>
-                <button className="mt-1 text-xs text-primary hover:underline">Agregar excepción</button>
-              </div>
             </div>
           )}
 
-          {/* TAB: Actividad */}
           {tab === "actividad" && (
-            <div className="p-5">
-              {activity.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <p className="text-sm text-muted-foreground">Sin actividad registrada.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {activity.map(entry => {
-                    const Icon = ACTION_ICONS[entry.type]
-                    return (
-                      <div key={entry.id} className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
-                        <div className={cn("flex size-6 shrink-0 items-center justify-center rounded-full mt-0.5", ACTION_COLORS[entry.type])}>
-                          <Icon className="size-3" strokeWidth={1.5} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs">{entry.description}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{entry.ip} · {entry.device}</p>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                          {format(entry.timestamp, "d MMM, HH:mm", { locale: es })}
-                        </p>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <ActivityTabContent userId={user.id} />
           )}
 
-          {/* TAB: Sesiones */}
           {tab === "sesiones" && (
-            <div className="p-5">
-              {sessions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <p className="text-sm text-muted-foreground">Sin sesiones activas.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {sessions.map(s => (
-                    <div key={s.id} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <DeviceIcon type={s.deviceType} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium">{s.browser}</p>
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-                          <MapPin className="size-2.5" strokeWidth={1.5} />
-                          {s.ip} · {s.city}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          Desde {format(s.startedAt, "d MMM, HH:mm", { locale: es })}
-                        </p>
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:bg-destructive/5 shrink-0">
-                        Cerrar
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <SessionsTabContent userId={user.id} />
           )}
         </div>
 
-        {/* ── Footer ── */}
         <div className="border-t border-border px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive hover:bg-destructive/5">
+            <Button
+              variant="ghost" size="sm"
+              className="h-8 text-xs text-destructive hover:bg-destructive/5"
+              onClick={() => onStatusToggle(user)}
+            >
               {user.status === "Activo" ? "Suspender" : "Activar"}
             </Button>
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive hover:bg-destructive/5">
+            <Button
+              variant="ghost" size="sm"
+              className="h-8 text-xs text-destructive hover:bg-destructive/5"
+              onClick={() => onDelete(user)}
+            >
               Eliminar
             </Button>
           </div>
-          <Button size="sm" className="h-8 text-xs">Editar usuario</Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline" size="sm" className="h-8 text-xs"
+              onClick={() => onResetPassword(user)}
+            >
+              Resetear contraseña
+            </Button>
+            <Button size="sm" className="h-8 text-xs" onClick={() => { onEdit(user); onClose() }}>
+              Editar usuario
+            </Button>
+          </div>
         </div>
       </div>
     </>
+  )
+}
+
+function ActivityTabContent({ userId }: { userId: string }) {
+  const [activity, setActivity] = React.useState<AuditLogEntry[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    fetch(`/api/users/${userId}/activity`)
+      .then(r => r.json())
+      .then(data => setActivity(data.map((e: any) => ({ ...e, createdAt: new Date(e.createdAt) }))))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [userId])
+
+  if (loading) return <div className="p-5 text-center text-sm text-muted-foreground">Cargando...</div>
+
+  if (activity.length === 0) {
+    return (
+      <div className="p-5 text-center text-muted-foreground text-sm">Sin actividad registrada.</div>
+    )
+  }
+
+  const ACTION_ICONS: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
+    LOGIN: LogIn, LOGOUT: LogOut, CREATE: Plus, UPDATE: Pencil, DELETE: Trash2, ARCHIVE: Eye, RESTORE: Download,
+  }
+  const ACTION_COLORS: Record<string, string> = {
+    LOGIN:"text-emerald-500 bg-emerald-50", LOGOUT:"text-gray-500 bg-gray-100",
+    CREATE:"text-blue-500 bg-blue-50", UPDATE:"text-amber-500 bg-amber-50",
+    DELETE:"text-red-500 bg-red-50", ARCHIVE:"text-muted-foreground bg-muted", RESTORE:"text-violet-500 bg-violet-50",
+  }
+
+  return (
+    <div className="p-5 space-y-2">
+      {activity.map(entry => {
+        const Icon = ACTION_ICONS[entry.actionType] ?? LogIn
+        return (
+          <div key={entry.id} className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+            <div className={cn("flex size-6 shrink-0 items-center justify-center rounded-full mt-0.5", ACTION_COLORS[entry.actionType] ?? "bg-muted")}>
+              <Icon className="size-3" strokeWidth={1.5} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs">{entry.description}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{entry.ip ?? ""}{entry.ip && entry.device ? " · " : ""}{entry.device ?? ""}</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+              {format(entry.createdAt, "d MMM, HH:mm", { locale: es })}
+            </p>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function SessionsTabContent({ userId }: { userId: string }) {
+  const [sessions, setSessions] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    fetch(`/api/users/${userId}/sessions`)
+      .then(r => r.json())
+      .then(data => setSessions(data.map((s: any) => ({ ...s, startedAt: new Date(s.startedAt), lastActivity: new Date(s.lastActivity) }))))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [userId])
+
+  if (loading) return <div className="p-5 text-center text-sm text-muted-foreground">Cargando...</div>
+
+  if (sessions.length === 0) {
+    return (
+      <div className="p-5 text-center text-muted-foreground text-sm">Sin sesiones activas.</div>
+    )
+  }
+
+  return (
+    <div className="p-5 space-y-2">
+      {sessions.map(s => (
+        <div key={s.id} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <DeviceIcon type={s.deviceType} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium">{s.browser ?? "Navegador desconocido"}</p>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+              <MapPin className="size-2.5" strokeWidth={1.5} />
+              {s.ip ?? "—"}{s.city ? ` · ${s.city}` : ""}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Desde {format(s.startedAt, "d MMM, HH:mm", { locale: es })}
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:bg-destructive/5 shrink-0">
+            Cerrar
+          </Button>
+        </div>
+      ))}
+    </div>
   )
 }

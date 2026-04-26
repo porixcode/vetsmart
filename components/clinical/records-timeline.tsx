@@ -3,204 +3,136 @@
 import * as React from "react"
 import { format, isSameDay } from "date-fns"
 import { es } from "date-fns/locale"
-import { ChevronDown, ChevronUp, Paperclip, Calendar } from "lucide-react"
-import {
-  type ClinicalRecord, recordTypeConfig, recordStatusConfig,
-} from "@/lib/data/clinical-records"
+import { Paperclip, Clock } from "lucide-react"
+import type { ClinicalRecordView } from "@/lib/types/clinical-records-view"
+import { ATTENTION_CONFIG, STATUS_CONFIG } from "@/lib/types/clinical-records-view"
 import { cn } from "@/lib/utils"
 
 interface RecordsTimelineProps {
-  records: ClinicalRecord[]
-  onRecordClick: (record: ClinicalRecord) => void
-}
-
-function groupByDate(records: ClinicalRecord[]): Array<{ dateKey: string; date: Date; records: ClinicalRecord[] }> {
-  const map = new Map<string, { date: Date; records: ClinicalRecord[] }>()
-  for (const r of records) {
-    const key = format(r.date, "yyyy-MM-dd")
-    if (!map.has(key)) map.set(key, { date: r.date, records: [] })
-    map.get(key)!.records.push(r)
-  }
-  return Array.from(map.entries()).map(([dateKey, v]) => ({ dateKey, ...v }))
-}
-
-function TimelineCard({
-  record,
-  onClick,
-}: {
-  record: ClinicalRecord
-  onClick: () => void
-}) {
-  const [expanded, setExpanded] = React.useState(false)
-  const tc = recordTypeConfig[record.type]
-  const sc = recordStatusConfig[record.status]
-
-  return (
-    <div
-      className={cn(
-        "relative rounded-lg border border-border bg-background overflow-hidden border-l-4 transition-shadow",
-        tc.border,
-      )}
-    >
-      {/* Main row */}
-      <div
-        className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
-        onClick={onClick}
-      >
-        {/* Patient avatar */}
-        <div
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-white text-sm font-semibold mt-0.5"
-          style={{ background: record.patient.color }}
-        >
-          {record.patient.name[0]}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium">{record.patient.name}</span>
-            <span className="text-xs text-muted-foreground">{record.patient.breed}</span>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground">{record.owner.name}</span>
-          </div>
-
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{record.reason}</p>
-
-          {expanded && record.soap && (
-            <div className="mt-3 space-y-2 border-t border-border pt-3">
-              {[
-                { label: "S", text: record.soap.subjective },
-                { label: "O", text: record.soap.objective },
-                { label: "A", text: record.soap.analysis },
-                { label: "P", text: record.soap.plan },
-              ].map(({ label, text }) => (
-                <div key={label} className="flex gap-2">
-                  <span className="shrink-0 size-5 rounded bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">
-                    {label}
-                  </span>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{text}</p>
-                </div>
-              ))}
-              {record.diagnoses.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {record.diagnoses.map(d => (
-                    <span key={d.cie10} className="rounded bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
-                      {d.cie10} {d.description}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Vet avatar */}
-          <div
-            className="flex size-6 items-center justify-center rounded-full text-white text-[9px] font-semibold"
-            style={{ background: record.veterinarian.color }}
-            title={record.veterinarian.name}
-          >
-            {record.veterinarian.lastName[0]}
-          </div>
-
-          {/* Type badge */}
-          <span className={cn(
-            "hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap",
-            tc.bg, tc.text
-          )}>
-            <span className={cn("size-1.5 rounded-full", tc.dot)} />
-            {record.type}
-          </span>
-
-          {/* Status badge */}
-          <span className={cn(
-            "hidden md:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-            sc.bg, sc.text
-          )}>
-            {record.status}
-          </span>
-
-          {/* Attachments */}
-          {record.attachments > 0 && (
-            <div className="flex items-center gap-0.5 text-muted-foreground">
-              <Paperclip className="size-3" strokeWidth={1.5} />
-              <span className="text-[10px]">{record.attachments}</span>
-            </div>
-          )}
-
-          {/* Follow-up */}
-          {record.followUp && (
-            <span title={`Seguimiento: ${format(record.followUp, "d MMM", { locale: es })}`}>
-              <Calendar className="size-3.5 text-amber-500" strokeWidth={1.5} />
-            </span>
-          )}
-
-          {/* Expand toggle */}
-          <button
-            onClick={e => { e.stopPropagation(); setExpanded(!expanded) }}
-            className="rounded p-0.5 hover:bg-muted transition-colors text-muted-foreground"
-          >
-            {expanded
-              ? <ChevronUp className="size-4" strokeWidth={1.5} />
-              : <ChevronDown className="size-4" strokeWidth={1.5} />}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+  records: ClinicalRecordView[]
+  onRecordClick: (record: ClinicalRecordView) => void
 }
 
 export function RecordsTimeline({ records, onRecordClick }: RecordsTimelineProps) {
-  const groups = groupByDate(records)
+  const grouped = React.useMemo(() => {
+    const groups: Array<{ date: Date; label: string; records: ClinicalRecordView[] }> = []
+    let currentGroup: (typeof groups)[number] | null = null
+
+    for (const r of records) {
+      if (!currentGroup || !isSameDay(r.date, currentGroup.date)) {
+        const isToday = isSameDay(r.date, new Date())
+        const isYesterday = isSameDay(r.date, new Date(Date.now() - 86400000))
+        const label = isToday ? "Hoy" : isYesterday ? "Ayer" : format(r.date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
+        currentGroup = { date: r.date, label: label.charAt(0).toUpperCase() + label.slice(1), records: [] }
+        groups.push(currentGroup)
+      }
+      currentGroup.records.push(r)
+    }
+
+    return groups
+  }, [records])
 
   if (records.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-sm text-muted-foreground">No se encontraron registros con esos filtros.</p>
+      <div className="flex items-center justify-center py-20">
+        <p className="text-sm text-muted-foreground">No se encontraron registros clínicos</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {groups.map(group => (
-        <div key={group.dateKey}>
-          {/* Sticky date header */}
-          <div className="sticky top-0 z-10 mb-3 flex items-center gap-3 bg-background py-1">
-            <div className="h-px flex-1 bg-border" />
-            <span className="shrink-0 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
-              {format(group.date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
-              {" "}
-              <span className="text-foreground">— {group.records.length} atencion{group.records.length !== 1 ? "es" : ""}</span>
-            </span>
-            <div className="h-px flex-1 bg-border" />
+    <div className="space-y-8 p-6">
+      {grouped.map(group => (
+        <div key={group.date.toISOString()}>
+          <div className="sticky top-0 z-10 bg-background pb-2 mb-4 border-b">
+            <h3 className="text-sm font-semibold">{group.label}</h3>
           </div>
 
-          {/* Timeline entries */}
-          <div className="relative pl-16">
-            {/* Vertical line */}
-            <div className="absolute left-8 top-0 bottom-0 w-px bg-border" />
+          <div className="relative space-y-0">
+            {group.records.map((r, i) => {
+              const tc = ATTENTION_CONFIG[r.type] ?? { dot: "bg-gray-400", bg: "bg-gray-100", text: "text-gray-600" }
+              const sc = STATUS_CONFIG[r.status] ?? { dot: "bg-gray-400", bg: "bg-gray-100", text: "text-gray-600" }
+              const isLast = i === group.records.length - 1
 
-            <div className="space-y-3">
-              {group.records.map(r => (
-                <div key={r.id} className="relative">
-                  {/* Time label on left axis */}
-                  <div className="absolute -left-16 top-3 flex w-12 justify-end">
-                    <span className="text-[10px] tabular-nums text-muted-foreground">
-                      {format(r.date, "HH:mm")}
-                    </span>
+              return (
+                <div key={r.id} className="relative flex gap-4 pb-6">
+                  {!isLast && (
+                    <div className="absolute left-[11px] top-5 bottom-0 w-px bg-border" />
+                  )}
+
+                  <div className="flex shrink-0 flex-col items-center pt-1">
+                    <span className={cn("size-[6px] rounded-full ring-2 ring-background", tc.dot)} />
                   </div>
 
-                  {/* Dot on the line */}
-                  <div className={cn(
-                    "absolute -left-[1.15rem] top-3.5 size-2.5 rounded-full border-2 border-background",
-                    recordTypeConfig[r.type].dot
-                  )} />
+                  <div
+                    className="flex-1 cursor-pointer rounded-lg border border-border bg-background p-3 hover:bg-muted/30 transition-colors min-w-0"
+                    onClick={() => onRecordClick(r)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className="size-6 shrink-0 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                          style={{ background: r.patient.color }}
+                        >
+                          {r.patient.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{r.patient.name}</p>
+                          <p className="text-xs text-muted-foreground">{r.patient.breed} · {r.owner.name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", tc.bg, tc.text)}>
+                          <span className={cn("size-1.5 rounded-full", tc.dot)} />
+                          {r.type}
+                        </span>
+                        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", sc.bg, sc.text)}>
+                          <span className={cn("size-1.5 rounded-full", sc.dot)} />
+                          {r.status}
+                        </span>
+                      </div>
+                    </div>
 
-                  <TimelineCard record={r} onClick={() => onRecordClick(r)} />
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">Dr. {r.veterinarian.name}</span>
+                        <span className="mx-1">·</span>
+                        {format(r.date, "HH:mm", { locale: es })}
+                      </p>
+                      <p className="text-xs">{r.visitReason}</p>
+                      {r.diagnoses.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {r.diagnoses.slice(0, 3).map((d, i) => (
+                            <span key={i} className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">
+                              {d.cie10}
+                            </span>
+                          ))}
+                          {r.diagnoses.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">+{r.diagnoses.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
+                      <span>{r.veterinarian.lastName}</span>
+                      {r.attachments > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Paperclip className="size-3" strokeWidth={1.5} />
+                          {r.attachments}
+                        </span>
+                      )}
+                      {r.followUp && (
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <Clock className="size-3" strokeWidth={1.5} />
+                          Seguimiento
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )
+            })}
           </div>
         </div>
       ))}

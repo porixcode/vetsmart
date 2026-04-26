@@ -4,10 +4,8 @@ import * as React from "react"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 import { ShieldCheck, ShieldOff, MoreHorizontal, Search, ChevronDown, Upload, LayoutGrid, LayoutList } from "lucide-react"
-import {
-  systemUsers, roleConfig, statusConfig, ROLES, STATUSES,
-  type SystemUser, type UserRole, type UserStatus,
-} from "@/lib/data/users"
+import type { UserView, UserRoleLabel, UserStatusLabel } from "@/lib/types/users-view"
+import { ROLE_CONFIG, STATUS_CONFIG, ROLES, STATUSES } from "@/lib/types/users-view"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -20,10 +18,16 @@ import {
 import { cn } from "@/lib/utils"
 
 interface UsersTabProps {
-  onUserClick: (user: SystemUser) => void
+  users: UserView[]
+  onUserClick: (user: UserView) => void
+  onEdit: (user: UserView) => void
+  onDelete: (user: UserView) => void
+  onStatusToggle: (user: UserView) => void
+  onResetPassword: (user: UserView) => void
+  onNewUser: () => void
 }
 
-function UserAvatar({ user, size = 32 }: { user: SystemUser; size?: number }) {
+function UserAvatar({ user, size = 32 }: { user: UserView; size?: number }) {
   const initials = user.name.split(" ").filter((_, i) => i < 2).map(w => w[0]).join("")
   return (
     <div
@@ -35,8 +39,8 @@ function UserAvatar({ user, size = 32 }: { user: SystemUser; size?: number }) {
   )
 }
 
-function RoleBadge({ role }: { role: UserRole }) {
-  const c = roleConfig[role]
+function RoleBadge({ role }: { role: UserRoleLabel }) {
+  const c = ROLE_CONFIG[role]
   return (
     <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium", c.bg, c.text)}>
       {role}
@@ -44,8 +48,8 @@ function RoleBadge({ role }: { role: UserRole }) {
   )
 }
 
-function StatusBadge({ status }: { status: UserStatus }) {
-  const c = statusConfig[status]
+function StatusBadge({ status }: { status: UserStatusLabel }) {
+  const c = STATUS_CONFIG[status]
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", c.bg, c.text)}>
       <span className={cn("size-1.5 rounded-full", c.dot)} />
@@ -54,16 +58,16 @@ function StatusBadge({ status }: { status: UserStatus }) {
   )
 }
 
-export function UsersTab({ onUserClick }: UsersTabProps) {
+export function UsersTab({ users, onUserClick, onEdit, onDelete, onStatusToggle, onResetPassword, onNewUser }: UsersTabProps) {
   const [search, setSearch] = React.useState("")
-  const [selRoles, setSelRoles]       = React.useState<UserRole[]>([])
-  const [selStatuses, setSelStatuses] = React.useState<UserStatus[]>([])
+  const [selRoles, setSelRoles]       = React.useState<UserRoleLabel[]>([])
+  const [selStatuses, setSelStatuses] = React.useState<UserStatusLabel[]>([])
   const [view, setView] = React.useState<"table" | "cards">("table")
 
-  const toggleRole   = (r: UserRole)   => setSelRoles(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r])
-  const toggleStatus = (s: UserStatus) => setSelStatuses(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s])
+  const toggleRole   = (r: UserRoleLabel)   => setSelRoles(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r])
+  const toggleStatus = (s: UserStatusLabel) => setSelStatuses(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s])
 
-  const filtered = React.useMemo(() => systemUsers.filter(u => {
+  const filtered = React.useMemo(() => users.filter(u => {
     if (search) {
       const q = search.toLowerCase()
       if (!u.name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q) && !u.cedula.includes(q)) return false
@@ -71,11 +75,10 @@ export function UsersTab({ onUserClick }: UsersTabProps) {
     if (selRoles.length > 0   && !selRoles.includes(u.role))     return false
     if (selStatuses.length > 0 && !selStatuses.includes(u.status)) return false
     return true
-  }), [search, selRoles, selStatuses])
+  }), [users, search, selRoles, selStatuses])
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Filter bar */}
       <div className="flex items-center gap-3 border-b px-6 py-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" strokeWidth={1.5} />
@@ -98,7 +101,7 @@ export function UsersTab({ onUserClick }: UsersTabProps) {
             {ROLES.map(r => (
               <DropdownMenuCheckboxItem key={r} checked={selRoles.includes(r)} onCheckedChange={() => toggleRole(r)}>
                 <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full" style={{ background: roleConfig[r].color }} />
+                  <span className="size-2 rounded-full" style={{ background: ROLE_CONFIG[r].color }} />
                   {r}
                 </div>
               </DropdownMenuCheckboxItem>
@@ -118,7 +121,7 @@ export function UsersTab({ onUserClick }: UsersTabProps) {
             {STATUSES.map(s => (
               <DropdownMenuCheckboxItem key={s} checked={selStatuses.includes(s)} onCheckedChange={() => toggleStatus(s)}>
                 <div className="flex items-center gap-2">
-                  <span className={cn("size-2 rounded-full", statusConfig[s].dot)} />
+                  <span className={cn("size-2 rounded-full", STATUS_CONFIG[s].dot)} />
                   {s}
                 </div>
               </DropdownMenuCheckboxItem>
@@ -142,7 +145,6 @@ export function UsersTab({ onUserClick }: UsersTabProps) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-auto">
         {view === "table" ? (
           <Table>
@@ -176,8 +178,8 @@ export function UsersTab({ onUserClick }: UsersTabProps) {
                   <TableCell><RoleBadge role={u.role} /></TableCell>
                   <TableCell className="text-xs text-muted-foreground">{u.specialty ?? "—"}</TableCell>
                   <TableCell>
-                    <span className="text-xs text-muted-foreground" title={u.lastActivity.toLocaleString("es-CO")}>
-                      {u.status === "Pendiente" ? "Sin acceso" : formatDistanceToNow(u.lastActivity, { locale: es, addSuffix: true })}
+                    <span className="text-xs text-muted-foreground" title={u.lastActivityAt?.toLocaleString("es-CO")}>
+                      {u.status === "Pendiente" || !u.lastActivityAt ? "Sin acceso" : formatDistanceToNow(u.lastActivityAt, { locale: es, addSuffix: true })}
                     </span>
                   </TableCell>
                   <TableCell><StatusBadge status={u.status} /></TableCell>
@@ -195,14 +197,16 @@ export function UsersTab({ onUserClick }: UsersTabProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => onUserClick(u)}>Ver perfil</DropdownMenuItem>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Resetear contraseña</DropdownMenuItem>
-                        <DropdownMenuItem>Cambiar rol</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onEdit(u)}>Editar</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onResetPassword(u)}>Resetear contraseña</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>{u.status === "Activo" ? "Suspender" : "Activar"}</DropdownMenuItem>
-                        <DropdownMenuItem>Ver auditoría</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onStatusToggle(u)}>
+                          {u.status === "Activo" ? "Suspender" : "Activar"}
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">Eliminar</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => onDelete(u)}>
+                          Eliminar
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -228,7 +232,7 @@ export function UsersTab({ onUserClick }: UsersTabProps) {
                   <StatusBadge status={u.status} />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  {u.status === "Pendiente" ? "Sin acceso" : formatDistanceToNow(u.lastActivity, { locale: es, addSuffix: true })}
+                  {u.status === "Pendiente" || !u.lastActivityAt ? "Sin acceso" : formatDistanceToNow(u.lastActivityAt, { locale: es, addSuffix: true })}
                 </p>
               </button>
             ))}
@@ -244,7 +248,7 @@ export function UsersTab({ onUserClick }: UsersTabProps) {
 
       <div className="border-t px-6 py-3 flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {filtered.length} de {systemUsers.length} usuarios
+          {filtered.length} de {users.length} usuarios
         </p>
       </div>
     </div>

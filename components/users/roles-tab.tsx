@@ -2,14 +2,8 @@
 
 import * as React from "react"
 import { ShieldCheck, Users, Check, X } from "lucide-react"
-import {
-  roleConfig, ALL_PERMISSIONS, PERMISSIONS_BY_ROLE, getUserCountByRole,
-  type UserRole,
-} from "@/lib/data/users"
-import { Button } from "@/components/ui/button"
+import { ROLE_CONFIG, ALL_PERMISSIONS, PERMISSIONS_BY_ROLE, ROLES, type UserRoleLabel } from "@/lib/types/users-view"
 import { cn } from "@/lib/utils"
-
-const ROLES: UserRole[] = ["Administrador", "Veterinario", "Recepcionista"]
 
 function PermissionRow({ label, granted }: { label: string; granted: boolean }) {
   return (
@@ -22,14 +16,11 @@ function PermissionRow({ label, granted }: { label: string; granted: boolean }) 
   )
 }
 
-function RoleCard({ role }: { role: UserRole }) {
-  const cfg = roleConfig[role]
+function RoleCard({ role }: { role: UserRoleLabel }) {
+  const cfg = ROLE_CONFIG[role]
   const perms = PERMISSIONS_BY_ROLE[role]
-  const count = getUserCountByRole(role)
-
   return (
     <div className="flex flex-col rounded-lg border border-border bg-background overflow-hidden">
-      {/* Card header */}
       <div className={cn("px-5 py-4 border-b border-border", cfg.bg)}>
         <div className="flex items-center gap-3">
           <div
@@ -40,20 +31,15 @@ function RoleCard({ role }: { role: UserRole }) {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className={cn("text-base font-semibold", cfg.text)}>{role}</h3>
-            <div className="flex items-center gap-1 mt-0.5">
-              <Users className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
-              <span className="text-xs text-muted-foreground">{count} usuario{count !== 1 ? "s" : ""}</span>
-            </div>
           </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground leading-relaxed">{cfg.description}</p>
       </div>
 
-      {/* Permissions body */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {Object.entries(ALL_PERMISSIONS).map(([module, actions]) => {
           const granted = perms[module] ?? []
-          if (granted.length === 0 && role === "Administrador") return null // admin has all, don't show empty modules
+          if (granted.length === 0 && role === "Administrador") return null
           return (
             <div key={module}>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground mb-1.5">{module}</p>
@@ -67,11 +53,10 @@ function RoleCard({ role }: { role: UserRole }) {
         })}
       </div>
 
-      {/* Footer */}
       <div className="border-t border-border px-5 py-3">
-        <Button variant="outline" size="sm" className="w-full h-8 text-xs">
+        <button className="w-full rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors">
           Editar permisos
-        </Button>
+        </button>
       </div>
     </div>
   )

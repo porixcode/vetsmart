@@ -3,62 +3,36 @@
 import * as React from "react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Paperclip, Calendar, MoreHorizontal } from "lucide-react"
+import { Eye, Paperclip, Clock, MoreHorizontal, Download } from "lucide-react"
+import type { ClinicalRecordView } from "@/lib/types/clinical-records-view"
+import { ATTENTION_CONFIG, STATUS_CONFIG } from "@/lib/types/clinical-records-view"
+import { Button } from "@/components/ui/button"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  type ClinicalRecord, recordTypeConfig, recordStatusConfig,
-} from "@/lib/data/clinical-records"
 import { cn } from "@/lib/utils"
 
 interface RecordsTableProps {
-  records: ClinicalRecord[]
-  selectedIds: Set<string>
+  records:       ClinicalRecordView[]
+  selectedIds:   Set<string>
   onToggleSelect: (id: string) => void
-  onToggleAll: () => void
-  onRowClick: (record: ClinicalRecord) => void
-  page: number
-  pageSize: number
-  totalCount: number
-  onPageChange: (page: number) => void
-}
-
-function PatientAvatar({ color, name }: { color: string; name: string }) {
-  return (
-    <div
-      className="flex size-7 shrink-0 items-center justify-center rounded-full text-white text-[10px] font-semibold"
-      style={{ background: color }}
-    >
-      {name[0]}
-    </div>
-  )
-}
-
-function VetAvatar({ color, lastName }: { color: string; lastName: string }) {
-  return (
-    <div
-      className="flex size-6 shrink-0 items-center justify-center rounded-full text-white text-[9px] font-semibold"
-      style={{ background: color }}
-    >
-      {lastName[0]}
-    </div>
-  )
+  onToggleAll:   () => void
+  onRowClick:    (record: ClinicalRecordView) => void
+  page:          number
+  pageSize:      number
+  totalCount:    number
+  onPageChange:  (page: number) => void
 }
 
 export function RecordsTable({
-  records, selectedIds, onToggleSelect, onToggleAll,
-  onRowClick, page, pageSize, totalCount, onPageChange,
+  records, selectedIds, onToggleSelect, onToggleAll, onRowClick,
+  page, pageSize, totalCount, onPageChange,
 }: RecordsTableProps) {
-  const start = (page - 1) * pageSize + 1
-  const end = Math.min(page * pageSize, totalCount)
   const totalPages = Math.ceil(totalCount / pageSize)
-  const allSelected = records.length > 0 && records.every(r => selectedIds.has(r.id))
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -66,189 +40,144 @@ export function RecordsTable({
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
-              <TableHead className="w-10 pl-4">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={onToggleAll}
-                  className="rounded border-border"
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={records.length > 0 && records.every(r => selectedIds.has(r.id))}
+                  onCheckedChange={onToggleAll}
                 />
               </TableHead>
-              <TableHead className="whitespace-nowrap">Fecha / Hora</TableHead>
+              <TableHead className="w-28">Fecha/Hora</TableHead>
               <TableHead>Paciente</TableHead>
               <TableHead>Dueño</TableHead>
               <TableHead>Veterinario</TableHead>
               <TableHead>Tipo</TableHead>
-              <TableHead className="max-w-[200px]">Motivo</TableHead>
+              <TableHead>Motivo</TableHead>
               <TableHead>Diagnóstico</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead className="text-center">Adj.</TableHead>
-              <TableHead className="whitespace-nowrap">Seguimiento</TableHead>
+              <TableHead className="w-10 text-center" title="Adjuntos">
+                <Paperclip className="size-3.5 mx-auto" strokeWidth={1.5} />
+              </TableHead>
+              <TableHead className="w-10 text-center" title="Seguimiento">
+                <Clock className="size-3.5 mx-auto" strokeWidth={1.5} />
+              </TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {records.map(r => {
-              const tc = recordTypeConfig[r.type]
-              const sc = recordStatusConfig[r.status]
-              const isSelected = selectedIds.has(r.id)
-              return (
-                <TableRow
-                  key={r.id}
-                  className={cn("cursor-pointer", isSelected && "bg-primary/5")}
-                  onClick={() => onRowClick(r)}
-                >
-                  <TableCell className="pl-4" onClick={e => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => onToggleSelect(r.id)}
-                      className="rounded border-border"
-                    />
-                  </TableCell>
-
-                  <TableCell className="whitespace-nowrap">
-                    <p className="text-xs font-medium tabular-nums">
-                      {format(r.date, "d MMM yyyy", { locale: es })}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground tabular-nums">
-                      {format(r.date, "HH:mm")}
-                    </p>
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <PatientAvatar color={r.patient.color} name={r.patient.name} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium truncate">{r.patient.name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">{r.patient.breed}</p>
+            {records.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={12} className="text-center py-12 text-sm text-muted-foreground">
+                  No se encontraron registros clínicos
+                </TableCell>
+              </TableRow>
+            ) : (
+              records.map(r => {
+                const tc = ATTENTION_CONFIG[r.type] ?? { dot: "bg-gray-400", bg: "bg-gray-100", text: "text-gray-600" }
+                const sc = STATUS_CONFIG[r.status] ?? { dot: "bg-gray-400", bg: "bg-gray-100", text: "text-gray-600" }
+                return (
+                  <TableRow key={r.id} className="cursor-pointer" onClick={() => onRowClick(r)}>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => onToggleSelect(r.id)} />
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      <span className="tabular-nums">{format(r.date, "d MMM", { locale: es })}</span>
+                      <br />
+                      <span className="text-muted-foreground">{format(r.date, "HH:mm", { locale: es })}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="size-6 shrink-0 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                          style={{ background: r.patient.color }}
+                        >
+                          {r.patient.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{r.patient.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{r.patient.breed}</p>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                    {r.owner.name}
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <VetAvatar color={r.veterinarian.color} lastName={r.veterinarian.lastName} />
-                      <span className="text-xs whitespace-nowrap">{r.veterinarian.lastName}</span>
-                    </div>
-                  </TableCell>
-
-                  <TableCell>
-                    <span className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap",
-                      tc.bg, tc.text
-                    )}>
-                      <span className={cn("size-1.5 rounded-full shrink-0", tc.dot)} />
-                      {r.type}
-                    </span>
-                  </TableCell>
-
-                  <TableCell className="max-w-[200px]">
-                    <p className="text-xs truncate" title={r.reason}>{r.reason}</p>
-                  </TableCell>
-
-                  <TableCell>
-                    {r.diagnoses.length > 0 ? (
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-[10px] text-muted-foreground bg-muted rounded px-1 py-0.5">
-                          {r.diagnoses[0].cie10}
-                        </span>
-                        <span className="text-[11px] truncate max-w-[100px]" title={r.diagnoses[0].description}>
-                          {r.diagnoses[0].description}
-                        </span>
-                      </div>
-                    ) : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-
-                  <TableCell>
-                    <span className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap",
-                      sc.bg, sc.text
-                    )}>
-                      <span className={cn("size-1.5 rounded-full shrink-0", sc.dot)} />
-                      {r.status}
-                    </span>
-                  </TableCell>
-
-                  <TableCell className="text-center">
-                    {r.attachments > 0 ? (
-                      <div className="flex items-center justify-center gap-0.5 text-muted-foreground">
-                        <Paperclip className="size-3.5" strokeWidth={1.5} />
-                        <span className="text-[11px]">{r.attachments}</span>
-                      </div>
-                    ) : <span className="text-muted-foreground text-xs">—</span>}
-                  </TableCell>
-
-                  <TableCell>
-                    {r.followUp ? (
-                      <div className="flex items-center gap-1 text-amber-600">
-                        <Calendar className="size-3.5 shrink-0" strokeWidth={1.5} />
-                        <span className="text-[11px] tabular-nums whitespace-nowrap">
-                          {format(r.followUp, "d MMM", { locale: es })}
-                        </span>
-                      </div>
-                    ) : <span className="text-muted-foreground text-xs">—</span>}
-                  </TableCell>
-
-                  <TableCell onClick={e => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-7">
-                          <MoreHorizontal className="size-4" strokeWidth={1.5} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onRowClick(r)}>Ver completo</DropdownMenuItem>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Imprimir</DropdownMenuItem>
-                        <DropdownMenuItem>Duplicar para nuevo registro</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">Anular</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{r.owner.name}</TableCell>
+                    <TableCell className="text-xs">{r.veterinarian.lastName}</TableCell>
+                    <TableCell>
+                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", tc.bg, tc.text)}>
+                        <span className={cn("size-1.5 rounded-full", tc.dot)} />
+                        {r.type}
+                      </span>
+                    </TableCell>
+                    <TableCell className="max-w-[180px]">
+                      <p className="truncate text-xs">{r.visitReason}</p>
+                    </TableCell>
+                    <TableCell className="max-w-[150px]">
+                      <p className="truncate text-xs text-muted-foreground">
+                        {r.diagnoses[0]?.cie10 ?? "—"}
+                        {r.diagnoses[0] && <span className="ml-1">· {r.diagnoses[0].description}</span>}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", sc.bg, sc.text)}>
+                        <span className={cn("size-1.5 rounded-full", sc.dot)} />
+                        {r.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">{r.attachments > 0 && <Paperclip className="size-3.5 inline text-muted-foreground" strokeWidth={1.5} />}</TableCell>
+                    <TableCell className="text-center">{r.followUp && <Clock className="size-3.5 inline text-amber-500" strokeWidth={1.5} />}</TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-7">
+                            <MoreHorizontal className="size-4" strokeWidth={1.5} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onRowClick(r)}>
+                            <Eye className="mr-2 size-3.5" strokeWidth={1.5} />
+                            Ver detalle
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Download className="mr-2 size-3.5" strokeWidth={1.5} />
+                            Descargar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive">Anular</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
           </TableBody>
         </Table>
+      </div>
 
-        {records.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-muted-foreground">No se encontraron registros con esos filtros.</p>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t px-6 py-3">
+          <p className="text-xs text-muted-foreground">
+            {records.length} registros
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline" size="sm" className="h-7 text-xs"
+              disabled={page <= 1}
+              onClick={() => onPageChange(page - 1)}
+            >
+              Anterior
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {page} / {totalPages}
+            </span>
+            <Button
+              variant="outline" size="sm" className="h-7 text-xs"
+              disabled={page >= totalPages}
+              onClick={() => onPageChange(page + 1)}
+            >
+              Siguiente
+            </Button>
           </div>
-        )}
-      </div>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between border-t border-border px-6 py-3">
-        <p className="text-sm text-muted-foreground">
-          Mostrando {start}–{end} de {totalCount.toLocaleString("es-CO")}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline" size="sm" className="h-7 text-xs"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-          >
-            Anterior
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            Pág. {page} de {totalPages}
-          </span>
-          <Button
-            variant="outline" size="sm" className="h-7 text-xs"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
-          >
-            Siguiente
-          </Button>
         </div>
-      </div>
+      )}
     </div>
   )
 }

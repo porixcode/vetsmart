@@ -1,10 +1,15 @@
 import "server-only"
 
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { ATTENTION_ENUM_TO_LABEL, RECORD_STATUS_ENUM_TO_LABEL } from "@/lib/validators/clinical-records"
+import type { ClinicalRecordSearch } from "@/lib/validators/clinical-records"
+import type { ClinicalRecordView, RecordVetView } from "@/lib/types/clinical-records-view"
 import type { ClinicalRecord } from "@/lib/types/patient-view"
 
-function mapRecord(r: NonNullable<Awaited<ReturnType<typeof getPatientRecordsRaw>>>[number]): ClinicalRecord {
+type RawRecord = NonNullable<Awaited<ReturnType<typeof getPatientRecordsRaw>>>[number]
+
+function mapRecordToPatientDetail(r: RawRecord): ClinicalRecord {
   return {
     id:            r.id,
     patientId:     r.patientId,
@@ -39,153 +44,163 @@ async function getPatientRecordsRaw(patientId: string) {
 
 export async function getPatientClinicalRecords(patientId: string): Promise<ClinicalRecord[]> {
   const records = await getPatientRecordsRaw(patientId)
-  return records.map(mapRecord)
+  return records.map(mapRecordToPatientDetail)
 }
 
-export async function getDashboardAppointmentsToday() {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      startsAt: { gte: today, lt: tomorrow },
-      deletedAt: null,
+const listInclude = {
+  patient: {
+    select: {
+      id: true, name: true, species: true, breed: true, color: true,
+      owner: { select: { name: true } },
     },
-    orderBy: { startsAt: "asc" },
-    include: {
-      patient:      { select: { id: true, name: true, breed: true, species: true } },
-      veterinarian: { select: { id: true, name: true } },
-      service:      { select: { name: true } },
-    },
-  })
-
-  return appointments.map(a => ({
-    id:         a.id,
-    time:       a.startsAt.toTimeString().slice(0, 5),
-    patientName: a.patient.name,
-    breed:      a.patient.breed,
-    service:    a.service?.name ?? "Consulta",
-    veterinarian: a.veterinarian.name,
-    status:     a.status === "COMPLETADA" ? "completed" as const
-              : a.status === "EN_CURSO"   ? "in-progress" as const
-              : "pending" as const,
-    color:      ["#2563EB", "#10B981", "#F59E0B", "#8B5CF6", "#EF4444"][Math.floor(Math.random() * 5)],
-  }))
+  },
+  veterinarian: {
+    select: { id: true, name: true, color: true },
+  },
+  vitals: true,
+  diagnoses: {
+    select: { cie10: true, description: true },
+  },
+  medications: {
+    select: { name: true, dose: true, frequency: true, duration: true },
+  },
+  procedures: {
+    select: { code: true, name: true },
+  },
+  attachments: {
+    select: { name: true, type: true, url: true, size: true },
+  },
 }
 
-export async function getDashboardKpis() {
-  const now        = new Date()
-  const firstOfMon = new Date(now.getFullYear(), now.getMonth(), 1)
-  const today      = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const tomorrow   = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+function mapListRecord(r: Record<string, any>): ClinicalRecordView {
+  const typeLabel = ATTENTION_ENUM_TO_LABEL[r.type as keyof typeof ATTENTION_ENUM_TO_LABEL] ?? r.type
+  const statusLabel = RECORD_STATUS_ENUM_TO_LABEL[r.status as keyof typeof RECORD_STATUS_ENUM_TO_LABEL] ?? r.status
 
-  const [
-    appointmentsToday,
-    activePatients,
-    newThisMonth,
-    criticalStock,
-    monthlyIncome,
-  ] = await Promise.all([
-    prisma.appointment.count({
-      where: { startsAt: { gte: today, lt: tomorrow }, deletedAt: null, status: { not: "CANCELADA" } },
-    }),
-    prisma.patient.count({
-      where: { deletedAt: null, status: { in: ["ACTIVO", "EN_TRATAMIENTO"] } },
-    }),
-    prisma.patient.count({
-      where: { deletedAt: null, createdAt: { gte: firstOfMon } },
-    }),
-    prisma.product.count({
-      where: { deletedAt: null, status: { in: ["STOCK_BAJO", "AGOTADO"] } },
-    }),
-    prisma.appointment.count({
-      where: { startsAt: { gte: firstOfMon }, deletedAt: null, status: "COMPLETADA" },
-    }),
-  ])
+  const vetName = r.veterinarian.name
+  const vetNameParts = vetName.split(" ")
+  const lastName = vetNameParts.length > 1 ? vetNameParts[vetNameParts.length - 1] : vetName
 
   return {
-    appointmentsToday,
-    activePatients,
-    newThisMonth,
-    criticalStock,
-    monthlyIncome: monthlyIncome * 80000,
+    id: r.id,
+    patientId: r.patientId,
+    date: r.date,
+    type: typeLabel,
+    status: statusLabel,
+    visitReason: r.visitReason,
+    patient: {
+      id: r.patient.id,
+      name: r.patient.name,
+      species: r.patient.species,
+      breed: r.patient.breed,
+      color: r.patient.color ?? "#6B7280",
+    },
+    owner: {
+      name: r.patient.owner?.name ?? "",
+    },
+    veterinarian: {
+      id: r.veterinarian.id,
+      name: vetName,
+      lastName,
+      color: r.veterinarian.color,
+    },
+    soap: {
+      subjective: r.subjective ?? "",
+      objective:  r.objective ?? "",
+      analysis:   r.analysis ?? "",
+      plan:       r.plan ?? "",
+    },
+    vitals: r.vitals ? {
+      temperature: r.vitals.temperature,
+      heartRate:   r.vitals.heartRate,
+      respRate:    r.vitals.respRate,
+      weight:      r.vitals.weight,
+      mucous:      r.vitals.mucous,
+    } : null,
+    diagnoses: (r.diagnoses ?? []).map((d: any) => ({ cie10: d.cie10, description: d.description })),
+    medications: (r.medications ?? []).map((m: any) => ({
+      name: m.name, dose: m.dose,
+      frequency: m.frequency, duration: m.duration,
+    })),
+    procedures: (r.procedures ?? []).map((p: any) => ({ code: p.code, name: p.name })),
+    files: (r.attachments ?? []).map((a: any) => ({
+      name: a.name, type: a.type, url: a.url, size: a.size,
+    })),
+    attachments: (r.attachments ?? []).length,
+    followUp: r.nextControl != null,
+    nextControl: r.nextControl,
+    duration: null,
+    room: null,
+    appointmentId: r.appointmentId,
   }
 }
 
-export async function getDashboardInventoryAlerts() {
-  return prisma.product.findMany({
-    where: { deletedAt: null, status: { in: ["STOCK_BAJO", "AGOTADO"] } },
-    orderBy: { currentStock: "asc" },
-    take: 4,
-    select: {
-      id: true,
-      name: true,
-      currentStock: true,
-      minimumStock: true,
-    },
-  })
-}
+async function getRecordsListRaw(search: ClinicalRecordSearch) {
+  const rangeStart = new Date()
+  rangeStart.setDate(rangeStart.getDate() - search.dateRange)
 
-export async function getDashboardUpcomingVaccines() {
-  const now = new Date()
-  const nextWeek = new Date(now)
-  nextWeek.setDate(nextWeek.getDate() + 14)
-
-  return prisma.vaccination.findMany({
-    where: {
-      dateDue: { gte: now, lte: nextWeek },
-      patient: { deletedAt: null },
-    },
-    orderBy: { dateDue: "asc" },
-    take: 4,
-    include: {
-      patient: { select: { id: true, name: true } },
-    },
-  })
-}
-
-export async function getDashboardRecentActivity() {
-  return prisma.auditLog.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 6,
-    include: {
-      user: { select: { name: true } },
-    },
-  })
-}
-
-export async function getDashboardServicesChart() {
-  const firstOfMonth = new Date()
-  firstOfMonth.setDate(1)
-  firstOfMonth.setHours(0, 0, 0, 0)
-
-  const records = await prisma.clinicalRecord.findMany({
-    where: { date: { gte: firstOfMonth }, deletedAt: null },
-    select: { type: true },
-  })
-
-  const counts: Record<string, number> = {}
-  for (const r of records) {
-    const label = ATTENTION_ENUM_TO_LABEL[r.type] ?? r.type
-    counts[label] = (counts[label] || 0) + 1
+  const where: Prisma.ClinicalRecordWhereInput = {
+    deletedAt: null,
+    date: { gte: rangeStart },
   }
 
-  const labelMap: Record<string, string> = {
-    CONSULTA: "Consulta general",
-    VACUNACION: "Vacunación",
-    CIRUGIA: "Cirugía menor",
-    CONTROL: "Control general",
-    URGENCIA: "Urgencias",
-    EXAMEN: "Exámenes",
-    DESPARASITACION: "Desparasitación",
-    HOSPITALIZACION: "Hospitalización",
+  if (search.q) {
+    const q = search.q
+    where.OR = [
+      { visitReason: { contains: q, mode: "insensitive" } },
+      { patient: { name: { contains: q, mode: "insensitive" } } },
+      { diagnoses: { some: { description: { contains: q, mode: "insensitive" } } } },
+      { diagnoses: { some: { cie10: { contains: q, mode: "insensitive" } } } },
+    ]
   }
 
-  return Object.entries(counts).map(([key, count]) => ({
-    name: labelMap[key] ?? key,
-    count,
-  }))
+  if (search.veterinarianId) {
+    where.veterinarianId = search.veterinarianId
+  }
+
+  if (search.type) {
+    const typeEnum = Object.entries(ATTENTION_ENUM_TO_LABEL)
+      .find(([, v]) => v === search.type)?.[0]
+    if (typeEnum) where.type = typeEnum as any
+  }
+
+  if (search.species) {
+    where.patient = { ...(where.patient as any ?? {}), species: search.species }
+  }
+
+  if (search.status) {
+    const statusEnum = Object.entries(RECORD_STATUS_ENUM_TO_LABEL)
+      .find(([, v]) => v === search.status)?.[0]
+    if (statusEnum) where.status = statusEnum as any
+  }
+
+  if (search.hasAttachments) {
+    where.attachments = { some: {} }
+  }
+
+  if (search.hasFollowUp) {
+    where.nextControl = { not: null }
+  }
+
+  const [records, total] = await Promise.all([
+    prisma.clinicalRecord.findMany({
+      where,
+      orderBy: { date: "desc" },
+      skip: (search.page - 1) * search.pageSize,
+      take: search.pageSize,
+      include: listInclude,
+    }),
+    prisma.clinicalRecord.count({ where }),
+  ])
+
+  return { records, total }
+}
+
+export async function getClinicalRecordsList(search: ClinicalRecordSearch) {
+  const { records, total } = await getRecordsListRaw(search)
+  return {
+    records: records.map(mapListRecord),
+    total,
+    page: search.page,
+    pageSize: search.pageSize,
+  }
 }

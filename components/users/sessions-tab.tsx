@@ -4,25 +4,31 @@ import * as React from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 import { Monitor, Smartphone, Tablet, MapPin, LogOut } from "lucide-react"
-import { activeSessions, getUserById, type DeviceType } from "@/lib/data/users"
+import type { ActiveSessionView } from "@/lib/types/users-view"
+import { ROLE_CONFIG } from "@/lib/types/users-view"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-function DeviceIcon({ type }: { type: DeviceType }) {
+interface SessionsTabProps {
+  sessions?: ActiveSessionView[]
+}
+
+function DeviceIcon({ type }: { type: string | null }) {
   if (type === "mobile")  return <Smartphone className="size-4 text-muted-foreground" strokeWidth={1.5} />
   if (type === "tablet")  return <Tablet      className="size-4 text-muted-foreground" strokeWidth={1.5} />
   return <Monitor className="size-4 text-muted-foreground" strokeWidth={1.5} />
 }
 
-export function SessionsTab() {
-  const [sessions, setSessions] = React.useState(activeSessions)
+export function SessionsTab({ sessions: initialSessions = [] }: SessionsTabProps) {
+  const [sessions, setSessions] = React.useState(initialSessions)
+
+  React.useEffect(() => { setSessions(initialSessions) }, [initialSessions])
 
   const revokeSession = (id: string) => setSessions(prev => prev.filter(s => s.id !== id))
   const revokeAll = () => setSessions([])
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-auto p-6 space-y-4">
-      {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium">{sessions.length} sesiones activas</p>
@@ -40,7 +46,6 @@ export function SessionsTab() {
         </Button>
       </div>
 
-      {/* Sessions list */}
       {sessions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-sm text-muted-foreground">No hay sesiones activas en este momento.</p>
@@ -48,40 +53,33 @@ export function SessionsTab() {
       ) : (
         <div className="rounded-lg border border-border bg-background overflow-hidden">
           {sessions.map((s, i) => {
-            const user = getUserById(s.userId)
-            if (!user) return null
-            const initials = user.name.split(" ").slice(0, 2).map(w => w[0]).join("")
             return (
               <div key={s.id} className={cn("flex items-center gap-4 px-4 py-3", i < sessions.length - 1 && "border-b border-border")}>
-                {/* Device icon */}
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
                   <DeviceIcon type={s.deviceType} />
                 </div>
 
-                {/* User */}
                 <div className="flex items-center gap-2 w-44 shrink-0">
                   <div
                     className="flex size-6 shrink-0 items-center justify-center rounded-full text-white text-[9px] font-bold"
-                    style={{ background: user.color }}
+                    style={{ background: s.userColor }}
                   >
-                    {initials}
+                    {s.userName.split(" ").slice(0, 2).map(w => w[0]).join("")}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium truncate">{user.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{user.role}</p>
+                    <p className="text-xs font-medium truncate">{s.userName}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.userRole}</p>
                   </div>
                 </div>
 
-                {/* Browser + IP */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium">{s.browser}</p>
+                  <p className="text-xs font-medium">{s.browser ?? "Navegador desconocido"}</p>
                   <div className="flex items-center gap-1 mt-0.5 text-muted-foreground">
                     <MapPin className="size-3 shrink-0" strokeWidth={1.5} />
-                    <span className="text-[11px]">{s.ip} · {s.city}</span>
+                    <span className="text-[11px]">{s.ip ?? "—"}{s.city ? ` · ${s.city}` : ""}</span>
                   </div>
                 </div>
 
-                {/* Timing */}
                 <div className="text-right shrink-0 hidden md:block">
                   <p className="text-xs text-muted-foreground">Inicio</p>
                   <p className="text-[11px] font-medium tabular-nums">
@@ -95,7 +93,6 @@ export function SessionsTab() {
                   </p>
                 </div>
 
-                {/* Revoke */}
                 <Button
                   variant="ghost"
                   size="sm"
