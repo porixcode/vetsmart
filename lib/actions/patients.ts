@@ -267,6 +267,167 @@ export async function updatePatient(
   }
 }
 
+export async function exportPatients(
+  ids?: string[],
+): Promise<{ ok: true; csv: string } | { ok: false; error: string }> {
+  try {
+    const where: Record<string, unknown> = { deletedAt: null }
+    if (ids && ids.length > 0) where.id = { in: ids }
+
+    const patients = await prisma.patient.findMany({
+      where,
+      include: { owner: true },
+      orderBy: { name: "asc" },
+    })
+
+    const header = ["Nombre","Especie","Raza","Sexo","Fecha Nacimiento","Peso (kg)","Color","Esterilizado","Microchip","Alergias","Condiciones","Notas","Propietario","Teléfono","Email","Cédula"]
+    const rows = patients.map(p => [
+      p.name,
+      p.species,
+      p.breed,
+      p.sex,
+      p.birthDate ? p.birthDate.toISOString().split("T")[0] : "",
+      p.weight ? String(p.weight) : "",
+      p.color ?? "",
+      p.neutered ? "Sí" : "No",
+      p.microchip ?? "",
+      (p.allergies ?? []).join("; "),
+      (p.preexistingConditions ?? []).join("; "),
+      p.notes ?? "",
+      p.owner?.name ?? "",
+      p.owner?.phone ?? "",
+      p.owner?.email ?? "",
+      p.owner?.documentId ?? "",
+    ])
+
+    const csv = [header, ...rows].map(line =>
+      line.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")
+    ).join("\n")
+
+    return { ok: true, csv: "\uFEFF" + csv }
+  } catch (err) {
+    return { ok: false, error: `Error al exportar: ${err instanceof Error ? err.message : "Error"}` }
+  }
+}
+
+export async function importPatients(
+  csv: string,
+): Promise<{ ok: true; count: number } | { ok: false; error: string; row?: number }> {
+  const user = await requireRole("ADMIN", "VETERINARIO")
+
+  try {
+    const lines = csv.split("\n").filter(l => l.trim())
+    if (lines.length < 2) return { ok: false, error: "CSV vacío o sin datos" }
+
+    const header = parseCSVLine(lines[0])
+    const colMap: Record<string, number> = {}
+    header.forEach((h, i) => { colMap[h.trim()] = i })
+
+    const required = ["Nombre"]
+    for (const r of required) {
+      if (!(r in colMap)) return { ok: false, error: `Columna requerida "${r}" no encontrada en el CSV. Columnas: ${header.join(", ")}` }
+    }
+
+    let count = 0
+    const errors: string[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const row = parseCSVLine(lines[i])
+      if (row.length === 0 || row.every(c => !c.trim())) continue
+
+      const name     = row[colMap["Nombre"]]?.trim() ?? ""
+      const species  = row[colMap["Especie"]]?.trim() ?? "Canino"
+      const breed    = row[colMap["Raza"]]?.trim() ?? "Mestizo"
+      const sex      = row[colMap["Sexo"]]?.trim() ?? "Macho"
+      const birthStr = row[colMap["Fecha Nacimiento"]]?.trim() ?? ""
+
+      if (!name) { errors.push(`Fila ${i + 1}: Nombre vacío`); continue }
+
+      const ownerDoc = row[colMap["Cédula"]]?.trim() ?? ""
+      let ownerId: string | undefined
+
+      if (ownerDoc) {
+        let owner = await prisma.owner.findFirst({ where: { documentId: ownerDoc } })
+        if (!owner) {
+          owner = await prisma.owner.create({
+            data: {
+              name:       row[colMap["Propietario"]]?.trim() ?? name + " Dueño",
+              documentId: ownerDoc,
+              phone:      row[colMap["Teléfono"]]?.trim() ?? "",
+              email:      row[colMap["Email"]]?.trim() ?? "",
+            },
+          })
+        }
+        ownerId = owner.id
+      }
+
+      try {
+        const speciesEnum = species === "Felino" ? "FELINO" : species === "Canino" ? "CANINO" : "OTRO"
+        const sexEnum = sex === "Hembra" ? "HEMBRA" : "MACHO"
+
+        await (prisma.patient.create as any)({
+          data: {
+            name,
+            species: speciesEnum,
+            breed,
+            sex: sexEnum,
+            ...(birthStr ? { birthDate: new Date(birthStr) } : {}),
+            ...(row[colMap["Peso (kg)"]] ? { weight: Number(row[colMap["Peso (kg)"]]) } : {}),
+            color: row[colMap["Color"]]?.trim() || null,
+            neutered: (row[colMap["Esterilizado"]]?.trim() ?? "") === "Sí",
+            microchip: row[colMap["Microchip"]]?.trim() || null,
+            allergies: row[colMap["Alergias"]]?.split(";").map(s => s.trim()).filter(Boolean) ?? [],
+            preexistingConditions: row[colMap["Condiciones"]]?.split(";").map(s => s.trim()).filter(Boolean) ?? [],
+            notes: row[colMap["Notas"]]?.trim() || null,
+            ownerId: ownerId || undefined,
+          },
+        })
+
+        count++
+      } catch (err) {
+        errors.push(`Fila ${i + 1} (${name}): ${err instanceof Error ? err.message : "Error"}`)
+      }
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        userId:      user.id,
+        actionType:  "CREATE",
+        module:      "Pacientes",
+        targetId:    `import-${Date.now()}`,
+        description: `Importó ${count} pacientes desde CSV${errors.length > 0 ? ` (${errors.length} errores)` : ""}`,
+      },
+    })
+
+    revalidatePath("/pacientes")
+    return { ok: true, count }
+  } catch (err) {
+    return { ok: false, error: `Error al importar: ${err instanceof Error ? err.message : "Error"}` }
+  }
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let current = ""
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        current += '"'; i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (ch === "," && !inQuotes) {
+      result.push(current); current = ""
+    } else {
+      current += ch
+    }
+  }
+  result.push(current)
+  return result
+}
+
 export async function bulkArchivePatients(ids: string[]): Promise<PatientActionState> {
   const user = await requireRole("ADMIN", "VETERINARIO")
   try {

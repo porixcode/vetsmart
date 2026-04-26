@@ -13,6 +13,7 @@ import {
 
 interface PatientFiltersProps {
   searchQuery: string
+  onExport?: () => void
   onSearchChange: (value: string) => void
   viewMode: "table" | "cards"
   onViewModeChange: (mode: "table" | "cards") => void
@@ -43,17 +44,11 @@ const allColumns = [
 ]
 
 export function PatientFilters({
-  searchQuery,
-  onSearchChange,
-  viewMode,
-  onViewModeChange,
-  filters,
-  onFiltersChange,
-  visibleColumns,
-  onVisibleColumnsChange,
-  vetNames = [],
+  searchQuery, onSearchChange, viewMode, onViewModeChange,
+  filters, onFiltersChange, visibleColumns, onVisibleColumnsChange, vetNames,
+  onExport,
 }: PatientFiltersProps) {
-  const vetOptions = ["Todos", ...vetNames]
+  const vetOptions = ["Todos", ...(vetNames ?? [])]
   const updateFilter = (key: keyof typeof filters, value: string) => {
     onFiltersChange({ ...filters, [key]: value })
   }
@@ -122,7 +117,7 @@ export function PatientFilters({
         </DropdownMenu>
 
         {/* Export */}
-        <Button variant="outline" size="sm" className="h-9">
+        <Button variant="outline" size="sm" className="h-9" onClick={onExport}>
           <Download className="mr-2 size-4" strokeWidth={1.5} />
           Exportar
         </Button>

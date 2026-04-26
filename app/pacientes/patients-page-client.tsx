@@ -6,14 +6,16 @@ import { Plus, Upload } from "lucide-react"
 import type { Patient } from "@/lib/types/patient-view"
 import type { OwnerOption } from "@/lib/queries/patients"
 import { formatAge, formatRelativeDate } from "@/lib/utils/dates"
+import { exportPatients, bulkArchivePatients } from "@/lib/actions/patients"
+import { downloadCSV } from "@/lib/csv-utils"
 import { AppShell } from "@/components/layout/app-shell"
 import { Button } from "@/components/ui/button"
 import { PatientFilters } from "@/components/patients/patient-filters"
 import { PatientTable } from "@/components/patients/patient-table"
 import { BulkActionsBar } from "@/components/patients/bulk-actions-bar"
 import { NewPatientModal } from "@/components/patients/new-patient-modal"
+import { ImportPatientModal } from "@/components/patients/import-patient-modal"
 
-// Re-export utils consumed by PatientTable (which still imports from here via prop)
 export { formatAge, formatRelativeDate }
 
 interface PatientsPageClientProps {
@@ -42,7 +44,6 @@ export function PatientsPageClient({
   const router = useRouter()
   const [patients, setPatients] = React.useState(initialPatients)
 
-  // Sync when RSC re-renders (after create/archive revalidatePath)
   React.useEffect(() => { setPatients(initialPatients) }, [initialPatients])
 
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -52,6 +53,7 @@ export function PatientsPageClient({
   const [selectedIds, setSelectedIds]       = React.useState<string[]>([])
   const [sortConfig, setSortConfig]         = React.useState<{ key: string; direction: "asc" | "desc" } | null>(null)
   const [isNewPatientOpen, setIsNewPatientOpen] = React.useState(false)
+  const [isImportOpen, setIsImportOpen] = React.useState(false)
 
   const filteredPatients = React.useMemo(() => {
     let result = [...patients]
@@ -137,6 +139,50 @@ export function PatientsPageClient({
     router.refresh()
   }
 
+  const handleExportAll = async () => {
+    const res = await exportPatients()
+    if (res.ok) {
+      const lines = res.csv.split("\n").filter(l => l.trim()).map(l => {
+        const row: string[] = []; let cur = ""; let q = false
+        for (const ch of l) {
+          if (ch === '"') { q = !q; continue }
+          if (ch === "," && !q) { row.push(cur); cur = ""; continue }
+          cur += ch
+        }
+        row.push(cur)
+        return row
+      })
+      downloadCSV(lines, `pacientes-${new Date().toISOString().split("T")[0]}.csv`)
+    }
+  }
+
+  const handleExportSelected = async () => {
+    if (selectedIds.length === 0) return
+    const res = await exportPatients(selectedIds)
+    if (res.ok) {
+      const lines = res.csv.split("\n").filter(l => l.trim()).map(l => {
+        const row: string[] = []; let cur = ""; let q = false
+        for (const ch of l) {
+          if (ch === '"') { q = !q; continue }
+          if (ch === "," && !q) { row.push(cur); cur = ""; continue }
+          cur += ch
+        }
+        row.push(cur)
+        return row
+      })
+      downloadCSV(lines, `pacientes-seleccion-${new Date().toISOString().split("T")[0]}.csv`)
+    }
+  }
+
+  const handleBulkArchive = async () => {
+    if (selectedIds.length === 0) return
+    const res = await bulkArchivePatients(selectedIds)
+    if (res.ok) {
+      setSelectedIds([])
+      router.refresh()
+    }
+  }
+
   return (
     <AppShell>
       <div className="flex h-full flex-col">
@@ -148,7 +194,7 @@ export function PatientsPageClient({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost">
+            <Button variant="ghost" onClick={() => setIsImportOpen(true)}>
               <Upload className="mr-2 size-4" strokeWidth={1.5} />
               Importar CSV
             </Button>
@@ -169,15 +215,16 @@ export function PatientsPageClient({
           visibleColumns={visibleColumns}
           onVisibleColumnsChange={setVisibleColumns}
           vetNames={vetNames}
+          onExport={handleExportAll}
         />
 
         <BulkActionsBar
           selectedCount={selectedIds.length}
           onClear={() => setSelectedIds([])}
+          onExport={handleExportSelected}
+          onArchive={handleBulkArchive}
           onAssignVet={() => {}}
           onSendReminder={() => {}}
-          onExport={() => {}}
-          onArchive={() => {}}
         />
 
         <div className="flex-1 overflow-auto px-6">
@@ -209,6 +256,12 @@ export function PatientsPageClient({
         onOpenChange={setIsNewPatientOpen}
         onSuccess={handleCreateSuccess}
         owners={owners}
+      />
+
+      <ImportPatientModal
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onSuccess={() => router.refresh()}
       />
     </AppShell>
   )
