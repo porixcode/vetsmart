@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/table"
 import { ProductDetailDrawer } from "@/components/inventory/product-detail-drawer"
 import { MovementModal } from "@/components/inventory/movement-modal"
+import { NewProductModal } from "@/components/inventory/new-product-modal"
 import { cn } from "@/lib/utils"
 
 const CURRENCY = new Intl.NumberFormat("es-CO", {
@@ -68,6 +69,7 @@ export function InventarioPageClient({ initialProducts, initialStats }: Inventar
   const [movementModal,      setMovementModal]      = React.useState<{
     open: boolean; type: MovementTypeLabel; product: ProductView | null
   }>({ open: false, type: "Salida", product: null })
+  const [isNewProductOpen, setIsNewProductOpen] = React.useState(false)
 
   const filtered = React.useMemo(() => {
     return initialProducts.filter(p => {
@@ -125,7 +127,7 @@ export function InventarioPageClient({ initialProducts, initialStats }: Inventar
                 <DropdownMenuItem onClick={() => openMovement("Entrada")}>Entrada de producto</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button>
+            <Button onClick={() => setIsNewProductOpen(true)}>
               <Plus className="mr-2 size-4" strokeWidth={1.5} />
               Nuevo producto
             </Button>
@@ -312,7 +314,9 @@ export function InventarioPageClient({ initialProducts, initialStats }: Inventar
                             Registrar entrada
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem>Editar producto</DropdownMenuItem>
+                          <DropdownMenuItem onClick={e => { e.stopPropagation(); openDrawer(product) }}>
+                            Editar producto
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -356,6 +360,12 @@ export function InventarioPageClient({ initialProducts, initialStats }: Inventar
         onOpenChange={open => setMovementModal(prev => ({ ...prev, open }))}
         type={movementModal.type}
         initialProduct={movementModal.product ?? undefined}
+        onSuccess={() => router.refresh()}
+      />
+
+      <NewProductModal
+        open={isNewProductOpen}
+        onOpenChange={setIsNewProductOpen}
         onSuccess={() => router.refresh()}
       />
     </AppShell>

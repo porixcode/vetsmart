@@ -80,6 +80,34 @@ export const StockMovementSchema = z.object({
 })
 export type StockMovementInput = z.infer<typeof StockMovementSchema>
 
+const categoryCoerce = z.preprocess(
+  v => (typeof v === "string" && CATEGORY_LABEL_TO_ENUM[v]) ? CATEGORY_LABEL_TO_ENUM[v] : v,
+  z.nativeEnum(ProductCategory, { errorMap: () => ({ message: "Categoría inválida" }) }),
+)
+const statusCoerce = z.preprocess(
+  v => (typeof v === "string" && STATUS_LABEL_TO_ENUM[v]) ? STATUS_LABEL_TO_ENUM[v] : v,
+  z.nativeEnum(ProductStatus, { errorMap: () => ({ message: "Estado inválido" }) }),
+)
+
+export const CreateProductSchema = z.object({
+  code:          z.string().trim().min(1, "Código requerido"),
+  name:          z.string().trim().min(1, "Nombre requerido"),
+  category:      categoryCoerce,
+  brand:         z.string().trim().optional().transform(v => v || null),
+  unit:          z.string().trim().default("unidad"),
+  purchasePrice: z.coerce.number().int().min(0).default(0),
+  salePrice:     z.coerce.number().int().min(0).default(0),
+  currentStock:  z.coerce.number().int().min(0).default(0),
+  minimumStock:  z.coerce.number().int().min(0).default(0),
+  status:        statusCoerce.optional().default("ACTIVO" as any),
+})
+export type CreateProductInput = z.infer<typeof CreateProductSchema>
+
+export const UpdateProductSchema = CreateProductSchema.partial().extend({
+  id: z.string().min(1),
+})
+export type UpdateProductInput = z.infer<typeof UpdateProductSchema>
+
 export const InventorySearchSchema = z.object({
   q:          z.string().optional().default(""),
   categories: z.array(z.string()).optional().default([]),

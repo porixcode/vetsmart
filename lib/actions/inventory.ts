@@ -9,6 +9,7 @@ import {
   MOVEMENT_REASON_LABEL_TO_ENUM,
 } from "@/lib/validators/inventory"
 import { searchProductsForModal } from "@/lib/queries/inventory"
+import { CreateProductSchema, UpdateProductSchema } from "@/lib/validators/inventory"
 import type { ProductView } from "@/lib/types/inventory-view"
 import type { ProductStatus } from "@prisma/client"
 
@@ -115,4 +116,115 @@ export async function registerStockMovementAction(
 export async function searchProductsAction(q: string): Promise<ProductView[]> {
   await requireRole("ADMIN", "VETERINARIO", "RECEPCIONISTA")
   return searchProductsForModal(q)
+}
+
+function str(fd: FormData, key: string): string | undefined {
+  const v = fd.get(key)
+  if (typeof v !== "string") return undefined
+  const s = v.trim()
+  return s.length > 0 ? s : undefined
+}
+
+export async function createProduct(
+  _prev: InventoryActionState,
+  formData: FormData,
+): Promise<InventoryActionState> {
+  const user = await requireRole("ADMIN", "VETERINARIO")
+
+  const raw = {
+    code:          str(formData, "code"),
+    name:          str(formData, "name"),
+    category:      str(formData, "category"),
+    brand:         str(formData, "brand"),
+    unit:          str(formData, "unit"),
+    purchasePrice: str(formData, "purchasePrice"),
+    salePrice:     str(formData, "salePrice"),
+    currentStock:  str(formData, "currentStock"),
+    minimumStock:  str(formData, "minimumStock"),
+  }
+
+  const parsed = CreateProductSchema.safeParse(raw)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    return { ok: false, error: `${issue?.path?.join(".") ?? "campo"}: ${issue?.message}` }
+  }
+
+  const input = parsed.data
+
+  try {
+    const product = await prisma.product.create({
+      data: input,
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId:      user.id,
+        actionType:  "CREATE",
+        module:      "Inventario",
+        targetId:    product.id,
+        description: `Creó producto ${product.name} (${product.code})`,
+      },
+    })
+
+    revalidatePath("/inventario")
+    return { ok: true, id: product.id }
+  } catch (err: any) {
+    if (err?.code === "P2002") {
+      return { ok: false, error: `Ya existe un producto con el código "${input.code}"` }
+    }
+    return { ok: false, error: `No se pudo crear: ${err?.message ?? "Error desconocido"}` }
+  }
+}
+
+export async function updateProduct(
+  _prev: InventoryActionState,
+  formData: FormData,
+): Promise<InventoryActionState> {
+  const user = await requireRole("ADMIN", "VETERINARIO")
+
+  const id = str(formData, "id")
+  if (!id) return { ok: false, error: "ID requerido" }
+
+  const raw = {
+    id,
+    code:          str(formData, "code"),
+    name:          str(formData, "name"),
+    category:      str(formData, "category"),
+    brand:         str(formData, "brand"),
+    unit:          str(formData, "unit"),
+    purchasePrice: str(formData, "purchasePrice"),
+    salePrice:     str(formData, "salePrice"),
+    currentStock:  str(formData, "currentStock"),
+    minimumStock:  str(formData, "minimumStock"),
+  }
+
+  const parsed = UpdateProductSchema.safeParse(raw)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    return { ok: false, error: `${issue?.path?.join(".") ?? "campo"}: ${issue?.message}` }
+  }
+
+  const { id: _, ...data } = parsed.data
+
+  try {
+    const product = await prisma.product.update({
+      where: { id, deletedAt: null },
+      data,
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId:      user.id,
+        actionType:  "UPDATE",
+        module:      "Inventario",
+        targetId:    product.id,
+        description: `Actualizó producto ${product.name}`,
+      },
+    })
+
+    revalidatePath("/inventario")
+    return { ok: true, id: product.id }
+  } catch (err: any) {
+    return { ok: false, error: `No se pudo actualizar: ${err?.message ?? "Error desconocido"}` }
+  }
 }

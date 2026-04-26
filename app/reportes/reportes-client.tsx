@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { AnalyticsTab } from "@/components/reports/analytics-tab"
 import { GeneratorTab } from "@/components/reports/generator-tab"
+import { downloadCSV } from "@/lib/csv-utils"
 import { cn } from "@/lib/utils"
 
 type Tab = "analytics" | "generator"
@@ -32,6 +33,23 @@ export function ReportesClient({ data }: { data: any }) {
   const handleRefresh = () => {
     setIsRefreshing(true)
     setTimeout(() => setIsRefreshing(false), 800)
+  }
+
+  const handleExport = () => {
+    if (!data) return
+    const { kpiSummary } = data
+    const lines = [
+      ["Métrica", "Valor", "Período anterior", "Variación"],
+      ["Total atenciones", String(kpiSummary.totalAtenciones.value), String(kpiSummary.totalAtenciones.prev),
+        `${((kpiSummary.totalAtenciones.value - kpiSummary.totalAtenciones.prev) / Math.max(1, kpiSummary.totalAtenciones.prev) * 100).toFixed(1)}%`],
+      ["Pacientes únicos", String(kpiSummary.pacientesUnicos.value), String(kpiSummary.pacientesUnicos.prev),
+        `${((kpiSummary.pacientesUnicos.value - kpiSummary.pacientesUnicos.prev) / Math.max(1, kpiSummary.pacientesUnicos.prev) * 100).toFixed(1)}%`],
+      ["Ingresos brutos", String(kpiSummary.ingresosBrutos.value), String(kpiSummary.ingresosBrutos.prev),
+        `${((kpiSummary.ingresosBrutos.value - kpiSummary.ingresosBrutos.prev) / Math.max(1, kpiSummary.ingresosBrutos.prev) * 100).toFixed(1)}%`],
+      ["Ticket promedio", String(kpiSummary.ticketPromedio.value), String(kpiSummary.ticketPromedio.prev),
+        `${((kpiSummary.ticketPromedio.value - kpiSummary.ticketPromedio.prev) / Math.max(1, kpiSummary.ticketPromedio.prev) * 100).toFixed(1)}%`],
+    ]
+    downloadCSV(lines, `dashboard-${today.toISOString().split("T")[0]}.csv`)
   }
 
   return (
@@ -65,7 +83,7 @@ export function ReportesClient({ data }: { data: any }) {
           <Button variant="outline" size="sm" className="h-8" onClick={handleRefresh}>
             <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} strokeWidth={1.5} />
           </Button>
-          <Button size="sm" className="h-8 gap-1.5">
+          <Button size="sm" className="h-8 gap-1.5" onClick={handleExport}>
             <Download className="size-3.5" strokeWidth={1.5} />
             <span className="text-xs">Exportar</span>
           </Button>
