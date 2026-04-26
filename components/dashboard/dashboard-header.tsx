@@ -41,6 +41,7 @@ export function DashboardHeader({ appointmentsToday = 0, onExport, onRefresh }: 
       </div>
       <div className="flex items-center gap-2">
         <Button
+          type="button"
           variant="outline"
           size="sm"
           className="h-8 gap-1.5 rounded-sm border-border bg-background text-text-secondary hover:bg-background-muted hover:text-text-primary transition-colors duration-150"
@@ -50,6 +51,7 @@ export function DashboardHeader({ appointmentsToday = 0, onExport, onRefresh }: 
           <span>Hoy</span>
         </Button>
         <Button
+          type="button"
           variant="ghost"
           size="sm"
           className="h-8 gap-1.5 rounded-sm text-text-secondary hover:bg-background-muted hover:text-text-primary transition-colors duration-150"

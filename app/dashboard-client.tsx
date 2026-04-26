@@ -10,10 +10,6 @@ import { ServicesChart } from "@/components/dashboard/services-chart"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { OccupancyChart } from "@/components/dashboard/occupancy-chart"
 import { downloadCSV } from "@/lib/csv-utils"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
-
-const CURRENCY = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 })
 
 export function DashboardClient({ data }: { data: any }) {
   const router = useRouter()
@@ -21,23 +17,27 @@ export function DashboardClient({ data }: { data: any }) {
   const { kpiData, appointments, inventoryAlerts, upcomingVaccines, servicesData, recentActivity, occupancyData } = data
 
   const handleExport = () => {
-    const lines = [
-      ["Métrica", "Valor", "Detalle"],
-      ...kpiData.map((k: any) => [k.label, k.value, k.delta]),
-      [],
-      ["Citas de hoy"],
-      ["Hora", "Paciente", "Servicio", "Veterinario", "Estado"],
-      ...appointments.map((a: any) => [a.time, a.patientName, a.service, a.veterinarian, a.status]),
-      [],
-      ["Alertas de inventario"],
-      ["Producto", "Stock", "Mínimo"],
-      ...inventoryAlerts.map((i: any) => [i.name, String(i.currentStock), String(i.minimumStock)]),
-      [],
-      ["Próximas vacunas"],
-      ["Paciente", "Vacuna"],
-      ...upcomingVaccines.map((v: any) => [v.patient.name, v.vaccineName]),
-    ]
-    downloadCSV(lines, `dashboard-${format(new Date(), "yyyy-MM-dd", { locale: es })}.csv`)
+    try {
+      const lines: string[][] = [
+        ["Métrica", "Valor", "Detalle"],
+        ...(kpiData ?? []).map((k: any) => [String(k.label ?? ""), String(k.value ?? ""), String(k.delta ?? "")]),
+        [],
+        ["Citas de hoy"],
+        ["Hora", "Paciente", "Servicio", "Veterinario", "Estado"],
+        ...(appointments ?? []).map((a: any) => [a.time ?? "", a.patientName ?? "", a.service ?? "", a.veterinarian ?? "", a.status ?? ""]),
+        [],
+        ["Alertas de inventario"],
+        ["Producto", "Stock", "Mínimo"],
+        ...(inventoryAlerts ?? []).map((i: any) => [i.name ?? "", String(i.currentStock ?? 0), String(i.minimumStock ?? 0)]),
+        [],
+        ["Próximas vacunas"],
+        ["Paciente", "Vacuna"],
+        ...(upcomingVaccines ?? []).map((v: any) => [v.patient?.name ?? "", v.vaccineName ?? ""]),
+      ]
+      downloadCSV(lines, `dashboard-${new Date().toISOString().split("T")[0]}.csv`)
+    } catch (err) {
+      console.error("Export error:", err)
+    }
   }
 
   return (
