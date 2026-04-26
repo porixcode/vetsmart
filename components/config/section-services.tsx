@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Plus, MoreHorizontal, Search, ChevronDown } from "lucide-react"
-import { clinicServices, categoryColors, SERVICE_CATEGORIES, type ServiceCategory, type ServiceStatus } from "@/lib/data/config"
+import { clinicServices, categoryColors, SERVICE_CATEGORIES, type ServiceCategory, type ServiceStatus } from "@/lib/config-statics"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
