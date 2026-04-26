@@ -15,9 +15,11 @@ function getGreeting(): string {
 
 interface DashboardHeaderProps {
   appointmentsToday?: number
+  onExport?: () => void
+  onRefresh?: () => void
 }
 
-export function DashboardHeader({ appointmentsToday = 0 }: DashboardHeaderProps) {
+export function DashboardHeader({ appointmentsToday = 0, onExport, onRefresh }: DashboardHeaderProps) {
   const [greeting, setGreeting] = useState("Hola")
   const [formattedDate, setFormattedDate] = useState("")
 
@@ -42,15 +44,16 @@ export function DashboardHeader({ appointmentsToday = 0 }: DashboardHeaderProps)
           variant="outline"
           size="sm"
           className="h-8 gap-1.5 rounded-sm border-border bg-background text-text-secondary hover:bg-background-muted hover:text-text-primary transition-colors duration-150"
+          onClick={onRefresh}
         >
           <CalendarDays className="h-4 w-4" strokeWidth={1.5} />
           <span>Hoy</span>
-          <ChevronDown className="h-3 w-3 ml-1" strokeWidth={1.5} />
         </Button>
         <Button
           variant="ghost"
           size="sm"
           className="h-8 gap-1.5 rounded-sm text-text-secondary hover:bg-background-muted hover:text-text-primary transition-colors duration-150"
+          onClick={onExport}
         >
           <Download className="h-4 w-4" strokeWidth={1.5} />
           <span>Exportar</span>
