@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   description: 'Sistema de gestión veterinaria profesional para SERMEC Veterinaria',
   icons: {
     icon: [
+      { url: '/favicon.ico', type: 'image/x-icon' },
       {
         url: '/icon-light-32x32.png',
         media: '(prefers-color-scheme: light)',
