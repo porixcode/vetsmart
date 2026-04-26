@@ -1,9 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { requireRole } from "@/lib/auth-utils"
-import { CreatePatientSchema } from "@/lib/validators/patients"
+import { CreatePatientSchema, UpdatePatientSchema } from "@/lib/validators/patients"
 
 export type PatientActionState =
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> }
@@ -123,6 +124,12 @@ export async function createPatient(
     revalidatePath("/pacientes")
     return { ok: true, id: patient.id }
   } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2002") {
+        const field = Array.isArray(err.meta?.target) ? (err.meta.target as string[]).join(", ") : "campo"
+        return { ok: false, error: `Ya existe un paciente con ese ${field} (debe ser único)` }
+      }
+    }
     const msg = err instanceof Error ? err.message : "Error desconocido"
     return { ok: false, error: `No se pudo crear el paciente: ${msg}` }
   }
@@ -174,5 +181,116 @@ export async function restorePatient(id: string): Promise<PatientActionState> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Error desconocido"
     return { ok: false, error: `No se pudo restaurar: ${msg}` }
+  }
+}
+
+export async function updatePatient(
+  _prev: PatientActionState,
+  formData: FormData,
+): Promise<PatientActionState> {
+  const user = await requireRole("ADMIN", "VETERINARIO", "RECEPCIONISTA")
+
+  const id = str(formData, "id")
+  if (!id) return { ok: false, error: "ID de paciente requerido" }
+
+  const raw = {
+    id,
+    name:      str(formData, "name"),
+    species:   str(formData, "species"),
+    breed:     str(formData, "breed"),
+    sex:       str(formData, "sex"),
+    birthDate: str(formData, "birthDate"),
+    weight:    str(formData, "weight"),
+    color:     str(formData, "color"),
+    microchip: str(formData, "microchip"),
+    neutered:  str(formData, "neutered") === "on" || str(formData, "neutered") === "true",
+    allergies:             str(formData, "allergies"),
+    preexistingConditions: str(formData, "conditions"),
+    notes:                 str(formData, "observations"),
+    assignedVetId:            str(formData, "assignedVetId"),
+  }
+
+  const parsed = UpdatePatientSchema.safeParse(raw)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    return {
+      ok:          false,
+      error:       `${issue?.path?.join(".") ?? "campo"}: ${issue?.message ?? "Datos inválidos"}`,
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    }
+  }
+
+  const input = parsed.data
+
+  try {
+    const patient = await prisma.patient.update({
+      where: { id, deletedAt: null },
+      data: {
+        name:      input.name,
+        species:   input.species,
+        breed:     input.breed,
+        sex:       input.sex,
+        birthDate: input.birthDate ?? undefined,
+        weight:    input.weight ?? null,
+        color:     input.color ?? null,
+        microchip: input.microchip ?? null,
+        neutered:  input.neutered ?? undefined,
+        allergies:             input.allergies,
+        preexistingConditions: input.preexistingConditions,
+        notes:                 input.notes ?? null,
+        assignedVetId:         input.assignedVetId ?? null,
+      },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId:      user.id,
+        actionType:  "UPDATE",
+        module:      "Pacientes",
+        targetId:    patient.id,
+        description: `Actualizó paciente ${patient.name}`,
+      },
+    })
+
+    revalidatePath("/pacientes")
+    revalidatePath(`/pacientes/${id}`)
+    return { ok: true, id: patient.id }
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2002") {
+        const field = Array.isArray(err.meta?.target) ? (err.meta.target as string[]).join(", ") : "campo"
+        return { ok: false, error: `Ya existe un paciente con ese ${field} (debe ser único)` }
+      }
+    }
+    const msg = err instanceof Error ? err.message : "Error desconocido"
+    return { ok: false, error: `No se pudo actualizar: ${msg}` }
+  }
+}
+
+export async function bulkArchivePatients(ids: string[]): Promise<PatientActionState> {
+  const user = await requireRole("ADMIN", "VETERINARIO")
+  try {
+    await prisma.$transaction(
+      ids.map(id =>
+        prisma.patient.update({
+          where: { id, deletedAt: null },
+          data:  { deletedAt: new Date() },
+        })
+      )
+    )
+    await prisma.auditLog.create({
+      data: {
+        userId:      user.id,
+        actionType:  "ARCHIVE",
+        module:      "Pacientes",
+        targetId:    ids.join(","),
+        description: `Archivó ${ids.length} pacientes en lote`,
+      },
+    })
+    revalidatePath("/pacientes")
+    return { ok: true, id: ids[0] }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Error desconocido"
+    return { ok: false, error: `No se pudieron archivar: ${msg}` }
   }
 }

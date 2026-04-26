@@ -14,6 +14,8 @@ import type {
   Patient as PatientView,
   PatientDetailBundle,
   OwnerView,
+  Document,
+  TimelineEvent,
 } from "@/lib/types/patient-view"
 
 const patientInclude = {
@@ -144,14 +146,126 @@ export async function getPatientDetail(id: string): Promise<PatientDetailBundle 
 
   const patient = mapPatient(row)
 
+  const [clinicalRecords, vaccinations, dewormings, documents, notes] = await Promise.all([
+    prisma.clinicalRecord.findMany({
+      where: { patientId: id, deletedAt: null },
+      orderBy: { date: "desc" },
+      include: {
+        veterinarian: { select: { name: true } },
+        diagnoses:    { select: { cie10: true, description: true } },
+        attachments:  { select: { url: true }, take: 5 },
+      },
+    }),
+    prisma.vaccination.findMany({
+      where: { patientId: id },
+      orderBy: { dateApplied: "desc" },
+    }),
+    prisma.deworming.findMany({
+      where: { patientId: id },
+      orderBy: { dateApplied: "desc" },
+    }),
+    prisma.patientDocument.findMany({
+      where: { patientId: id },
+      orderBy: { uploadedAt: "desc" },
+    }),
+    prisma.patientNote.findMany({
+      where: { patientId: id },
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+      include: { author: { select: { name: true } } },
+    }),
+  ])
+
+  const timeline: TimelineEvent[] = [
+    ...clinicalRecords.map(r => ({
+      id: r.id,
+      patientId: id,
+      type: "Consulta" as const,
+      date: r.date,
+      title: r.visitReason,
+      description: `${r.veterinarian.name} · ${r.diagnoses[0]?.description ?? "Sin diagnóstico"}`,
+      veterinarian: r.veterinarian.name,
+      recordId: r.id,
+    })),
+    ...vaccinations.map(v => ({
+      id: v.id,
+      patientId: id,
+      type: "Vacuna" as const,
+      date: v.dateApplied,
+      title: v.vaccineName,
+      description: `Lote: ${v.lotNumber ?? "N/A"}`,
+      veterinarian: "",
+    })),
+    ...dewormings.map(d => ({
+      id: d.id,
+      patientId: id,
+      type: "Desparasitación" as const,
+      date: d.dateApplied,
+      title: d.product,
+      description: `Dosis: ${d.dose}`,
+      veterinarian: "",
+    })),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime())
+
   return {
     patient,
-    clinicalRecords: [],
-    vaccinations:    [],
-    dewormings:      [],
-    documents:       [],
-    notes:           [],
-    timeline:        [],
+    clinicalRecords: clinicalRecords.map(r => ({
+      id: r.id,
+      patientId: r.patientId,
+      date: r.date,
+      veterinarian: r.veterinarian.name,
+      visitReason: r.visitReason,
+      soap: {
+        subjective: r.subjective ?? "",
+        objective:  r.objective ?? "",
+        analysis:   r.analysis ?? "",
+        plan:       r.plan ?? "",
+      },
+      diagnosis:     r.diagnoses[0]?.description ?? undefined,
+      diagnosisCode: r.diagnoses[0]?.cie10 ?? undefined,
+      treatment:     r.treatment ?? undefined,
+      nextControl:   r.nextControl ?? undefined,
+      attachments:   r.attachments.map(a => a.url),
+    })),
+    vaccinations: vaccinations.map(v => ({
+      id: v.id,
+      patientId: v.patientId,
+      vaccineName: v.vaccineName,
+      lab: v.lab ?? "",
+      dateApplied: v.dateApplied,
+      dateDue: v.dateDue ?? undefined,
+      appliedBy: "",
+      lotNumber: v.lotNumber ?? "",
+      status: v.status === "APLICADA" ? "Aplicada" as const : v.status === "PENDIENTE" ? "Pendiente" as const : "Vencida" as const,
+    })),
+    dewormings: dewormings.map(d => ({
+      id: d.id,
+      patientId: d.patientId,
+      product: d.product,
+      dose: d.dose,
+      weightAtApplication: d.weightAtApplication ?? 0,
+      dateApplied: d.dateApplied,
+      nextDue: d.nextDue ?? undefined,
+      appliedBy: "",
+    })),
+    documents: documents.map(d => ({
+      id: d.id,
+      patientId: d.patientId,
+      name: d.name,
+      type: (d.type === "PDF" ? "PDF" as const : d.type === "IMAGEN" ? "Imagen" as const : d.type === "LAB" ? "Laboratorio" as const : d.type === "RADIOGRAFIA" ? "Radiografía" as const : d.type === "RECETA" ? "Receta" as const : d.type === "CONSENTIMIENTO" ? "Consentimiento" as const : "Otro" as const),
+      category: d.category as Document["category"],
+      uploadDate: d.uploadedAt,
+      size: d.size ?? "",
+      url: d.url,
+    })),
+    notes: notes.map(n => ({
+      id: n.id,
+      patientId: n.patientId,
+      content: n.content,
+      author: n.author.name,
+      createdAt: n.createdAt,
+      pinned: n.pinned,
+    })),
+    timeline,
   }
 }
 

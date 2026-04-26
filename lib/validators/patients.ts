@@ -84,6 +84,7 @@ export type CreatePatientInput = z.infer<typeof CreatePatientSchema>
 
 export const UpdatePatientSchema = CreatePatientSchema.innerType().partial().extend({
   id: z.string().min(1),
+  assignedVetId: z.string().optional().nullable(),
 })
 export type UpdatePatientInput = z.infer<typeof UpdatePatientSchema>
 

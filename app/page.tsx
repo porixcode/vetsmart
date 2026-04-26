@@ -7,80 +7,64 @@ import { UpcomingVaccines } from "@/components/dashboard/upcoming-vaccines"
 import { ServicesChart } from "@/components/dashboard/services-chart"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { OccupancyChart } from "@/components/dashboard/occupancy-chart"
+import {
+  getDashboardKpis,
+  getDashboardAppointmentsToday,
+  getDashboardInventoryAlerts,
+  getDashboardUpcomingVaccines,
+  getDashboardServicesChart,
+  getDashboardRecentActivity,
+  getDashboardStats,
+} from "@/lib/queries/dashboard"
 
-const kpiData = [
-  {
-    label: "Citas hoy",
-    value: "8",
-    delta: "+12% vs ayer",
-    deltaType: "positive" as const,
-    sparklineData: [4, 6, 5, 8, 7, 6, 8],
-  },
-  {
-    label: "Pacientes activos",
-    value: "247",
-    delta: "+3 nuevos esta semana",
-    deltaType: "positive" as const,
-    sparklineData: [230, 235, 238, 242, 244, 245, 247],
-  },
-  {
-    label: "Stock crítico",
-    value: "4",
-    delta: "productos",
-    deltaType: "warning" as const,
-    sparklineData: [2, 3, 2, 4, 3, 4, 4],
-  },
-  {
-    label: "Ingresos del mes",
-    value: "$4.280.000",
-    delta: "+18% vs mes anterior",
-    deltaType: "positive" as const,
-    sparklineData: [3200000, 3500000, 3800000, 4000000, 4100000, 4200000, 4280000],
-  },
-]
+export const dynamic = "force-dynamic"
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [
+    kpiData,
+    appointments,
+    inventoryAlerts,
+    upcomingVaccines,
+    servicesData,
+    recentActivity,
+    occupancyData,
+  ] = await Promise.all([
+    getDashboardKpis(),
+    getDashboardAppointmentsToday(),
+    getDashboardInventoryAlerts(),
+    getDashboardUpcomingVaccines(),
+    getDashboardServicesChart(),
+    getDashboardRecentActivity(),
+    getDashboardStats(),
+  ])
+
   return (
     <AppShell breadcrumb="Dashboard">
       <div className="space-y-6">
-        {/* Header */}
-        <DashboardHeader />
+        <DashboardHeader appointmentsToday={appointments.length} />
 
-        {/* Row 1: KPI Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {kpiData.map((kpi) => (
-            <KPICard
-              key={kpi.label}
-              label={kpi.label}
-              value={kpi.value}
-              delta={kpi.delta}
-              deltaType={kpi.deltaType}
-              sparklineData={kpi.sparklineData}
-            />
+            <KPICard key={kpi.label} {...kpi} />
           ))}
         </div>
 
-        {/* Row 2: Agenda + Sidebar */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* Agenda - 8 columns */}
           <div className="lg:col-span-8">
-            <AgendaToday />
+            <AgendaToday appointments={appointments} />
           </div>
 
-          {/* Sidebar Cards - 4 columns */}
           <div className="space-y-6 lg:col-span-4">
-            <InventoryAlerts />
-            <UpcomingVaccines />
+            <InventoryAlerts items={inventoryAlerts} />
+            <UpcomingVaccines reminders={upcomingVaccines} />
           </div>
         </div>
 
-        {/* Row 3: Services Chart (Full Width) */}
-        <ServicesChart />
+        <ServicesChart data={servicesData} />
 
-        {/* Row 4: Activity + Occupancy */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <RecentActivity />
-          <OccupancyChart />
+          <RecentActivity activities={recentActivity} />
+          <OccupancyChart data={occupancyData} />
         </div>
       </div>
     </AppShell>

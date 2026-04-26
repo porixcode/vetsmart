@@ -13,7 +13,11 @@ function getGreeting(): string {
   return "Buenas noches"
 }
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  appointmentsToday?: number
+}
+
+export function DashboardHeader({ appointmentsToday = 0 }: DashboardHeaderProps) {
   const [greeting, setGreeting] = useState("Hola")
   const [formattedDate, setFormattedDate] = useState("")
 
@@ -30,7 +34,7 @@ export function DashboardHeader() {
           {greeting}, Marly
         </h1>
         <p className="mt-1 text-sm text-text-muted capitalize">
-          {formattedDate ? `Hoy es ${formattedDate} — 8 citas programadas` : '\u00A0'}
+          {formattedDate ? `Hoy es ${formattedDate} — ${appointmentsToday} citas programadas` : '\u00A0'}
         </p>
       </div>
       <div className="flex items-center gap-2">

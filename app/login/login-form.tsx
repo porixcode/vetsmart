@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useActionState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useActionState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { AlertCircle, Loader2, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,9 +12,16 @@ import { loginAction, type LoginState } from "./actions"
 const INITIAL: LoginState = {}
 
 export function LoginForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get("callbackUrl") ?? "/"
   const [state, formAction, pending] = useActionState(loginAction, INITIAL)
+
+  useEffect(() => {
+    if (state?.redirectTo) {
+      router.push(state.redirectTo)
+    }
+  }, [state, router])
 
   return (
     <form action={formAction} className="space-y-4">

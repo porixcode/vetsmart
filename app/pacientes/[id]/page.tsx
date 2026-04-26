@@ -8,7 +8,7 @@ interface Props {
 
 export default async function PatientDetailPage({ params }: Props) {
   const { id } = await params
-  const bundle  = await getPatientDetail(id)
+  const bundle = await getPatientDetail(id)
   if (!bundle) notFound()
 
   return <PatientDetailClient bundle={bundle} />

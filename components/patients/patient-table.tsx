@@ -271,7 +271,7 @@ export function PatientTable({
                       <Eye className="mr-2 size-4" strokeWidth={1.5} />
                       Ver
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push(`/pacientes/${patient.id}`)}>
                       <Pencil className="mr-2 size-4" strokeWidth={1.5} />
                       Editar
                     </DropdownMenuItem>

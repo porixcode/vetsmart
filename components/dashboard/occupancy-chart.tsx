@@ -10,15 +10,15 @@ import {
   CartesianGrid,
 } from "recharts"
 
-const occupancyData = [
-  { day: "L", current: 78, previous: 65 },
-  { day: "M", current: 85, previous: 72 },
-  { day: "M", current: 92, previous: 80 },
-  { day: "J", current: 88, previous: 75 },
-  { day: "V", current: 95, previous: 88 },
-  { day: "S", current: 70, previous: 60 },
-  { day: "D", current: 45, previous: 35 },
-]
+interface OccupancyData {
+  day: string
+  current: number
+  previous: number
+}
+
+interface OccupancyChartProps {
+  data?: OccupancyData[]
+}
 
 interface CustomTooltipProps {
   active?: boolean
@@ -49,10 +49,9 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   return null
 }
 
-export function OccupancyChart() {
+export function OccupancyChart({ data = [] }: OccupancyChartProps) {
   return (
     <div className="rounded-md border border-border bg-card p-4">
-      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold tracking-tight-custom text-text-primary">
@@ -71,54 +70,59 @@ export function OccupancyChart() {
         </div>
       </div>
 
-      {/* Chart */}
       <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={occupancyData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-            <defs>
-              <linearGradient id="occupancyGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="#2563EB" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="#E5E7EB"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="day"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 12, fill: "#71717A" }}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 12, fill: "#71717A" }}
-              domain={[0, 100]}
-              tickFormatter={(value) => `${value}%`}
-              width={40}
-              className="tabular-nums"
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="previous"
-              stroke="#D4D4D8"
-              strokeWidth={1.5}
-              strokeDasharray="4 4"
-              fill="none"
-            />
-            <Area
-              type="monotone"
-              dataKey="current"
-              stroke="#2563EB"
-              strokeWidth={2}
-              fill="url(#occupancyGradient)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {data.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            No hay datos disponibles
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="occupancyGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2563EB" stopOpacity={0.1} />
+                  <stop offset="100%" stopColor="#2563EB" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#E5E7EB"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="day"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#71717A" }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#71717A" }}
+                domain={[0, 100]}
+                tickFormatter={(value) => `${value}%`}
+                width={40}
+                className="tabular-nums"
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="previous"
+                stroke="#D4D4D8"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                fill="none"
+              />
+              <Area
+                type="monotone"
+                dataKey="current"
+                stroke="#2563EB"
+                strokeWidth={2}
+                fill="url(#occupancyGradient)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   )

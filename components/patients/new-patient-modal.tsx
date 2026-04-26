@@ -61,14 +61,22 @@ export function NewPatientModal({ open, onOpenChange, onSuccess, owners = [] }: 
   React.useEffect(() => { setBreed("") }, [species])
 
   // On success: close + notify + reset
+  // Nota: React 19 Strict Mode dispara effects 2x. Usamos ref para evitar
+  // router.refresh() duplicado que causaba loop de re-fetch en pacientes.
+  const successHandled = React.useRef(false)
   React.useEffect(() => {
     if (state && "ok" in state && state.ok) {
+      if (successHandled.current) return
+      successHandled.current = true
       onSuccess?.()
       setSpecies("")
       setBreed("")
       setSex("Macho")
       setIsNewOwner(false)
       setOwnerId("")
+    }
+    if (state && !("ok" in state)) {
+      successHandled.current = false
     }
   }, [state, onSuccess])
 

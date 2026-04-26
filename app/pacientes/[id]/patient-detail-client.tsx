@@ -15,6 +15,7 @@ import { DewormingTab } from "@/components/patients/tabs/deworming-tab"
 import { DocumentsTab } from "@/components/patients/tabs/documents-tab"
 import { NotesTab } from "@/components/patients/tabs/notes-tab"
 import { NewClinicalRecordModal } from "@/components/patients/new-clinical-record-modal"
+import { EditPatientModal } from "@/components/patients/edit-patient-modal"
 import { archivePatient } from "@/lib/actions/patients"
 import { useAppointmentModal } from "@/components/providers/appointment-modal-provider"
 
@@ -28,6 +29,7 @@ export function PatientDetailClient({ bundle }: PatientDetailClientProps) {
   const { patient, clinicalRecords, vaccinations, dewormings, documents, timeline } = bundle
 
   const [isNewRecordOpen, setIsNewRecordOpen] = React.useState(false)
+  const [isEditOpen, setIsEditOpen] = React.useState(false)
   const [notes, setNotes] = React.useState<Note[]>(bundle.notes)
 
   const handleAddNote = (content: string) => {
@@ -50,6 +52,11 @@ export function PatientDetailClient({ bundle }: PatientDetailClientProps) {
     if (result.ok) router.push("/pacientes")
   }
 
+  const handleEditSuccess = () => {
+    setIsEditOpen(false)
+    router.refresh()
+  }
+
   return (
     <AppShell>
       <div className="flex h-full">
@@ -57,7 +64,7 @@ export function PatientDetailClient({ bundle }: PatientDetailClientProps) {
           patient={patient}
           onNewAppointment={() => openAppointmentModal({ patientId: patient.id })}
           onAddRecord={() => setIsNewRecordOpen(true)}
-          onEdit={() => {}}
+          onEdit={() => setIsEditOpen(true)}
           onArchive={handleArchive}
         />
 
@@ -112,7 +119,7 @@ export function PatientDetailClient({ bundle }: PatientDetailClientProps) {
               </TabsContent>
 
               <TabsContent value="documents">
-                <DocumentsTab documents={documents} onUpload={() => {}} />
+                <DocumentsTab documents={documents} onUpload={() => {}} patientId={patient.id} />
               </TabsContent>
 
               <TabsContent value="notes">
@@ -131,6 +138,14 @@ export function PatientDetailClient({ bundle }: PatientDetailClientProps) {
         open={isNewRecordOpen}
         onOpenChange={setIsNewRecordOpen}
         patientName={patient.name}
+        patientId={patient.id}
+      />
+
+      <EditPatientModal
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        onSuccess={handleEditSuccess}
+        patient={patient}
       />
     </AppShell>
   )
