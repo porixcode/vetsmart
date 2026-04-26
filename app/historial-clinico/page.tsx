@@ -1,4 +1,5 @@
 import { getClinicalRecordsList } from "@/lib/queries/clinical-records"
+import { listActivePatientsBrief } from "@/lib/queries/patients"
 import { ClinicalRecordSearchSchema } from "@/lib/validators/clinical-records"
 import { AppShell } from "@/components/layout/app-shell"
 import { HistorialClinicoClient } from "./historial-clinico-client"
@@ -17,13 +18,17 @@ export default async function HistorialClinicoPage({ searchParams }: Props) {
   }
 
   const search = ClinicalRecordSearchSchema.parse(flat)
-  const { records, total } = await getClinicalRecordsList(search)
+  const [{ records, total }, patients] = await Promise.all([
+    getClinicalRecordsList(search),
+    listActivePatientsBrief(),
+  ])
 
   return (
     <AppShell>
       <HistorialClinicoClient
         initialRecords={records}
         totalCount={total}
+        patients={patients}
         initialSearch={search}
       />
     </AppShell>

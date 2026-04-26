@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import {
@@ -27,6 +28,7 @@ const fileIcons: Record<string, React.ReactNode> = {
 }
 
 export function RecordDetailDrawer({ record, isOpen, onClose }: RecordDetailDrawerProps) {
+  const router = useRouter()
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
     document.addEventListener("keydown", handler)
@@ -240,18 +242,17 @@ export function RecordDetailDrawer({ record, isOpen, onClose }: RecordDetailDraw
         </div>
 
         <div className="border-t px-5 py-3 flex items-center justify-between">
-          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => window.print()}>
             <Printer className="size-3.5" strokeWidth={1.5} />
             Imprimir
           </Button>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+            <Button
+              variant="outline" size="sm" className="h-8 text-xs gap-1.5"
+              onClick={() => { onClose(); router.push(`/pacientes/${record.patientId}`) }}
+            >
               <Edit className="size-3.5" strokeWidth={1.5} />
-              Editar
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-              <CopyIcon className="size-3.5" strokeWidth={1.5} />
-              Duplicar
+              Editar en paciente
             </Button>
           </div>
         </div>

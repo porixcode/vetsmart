@@ -315,3 +315,11 @@ export async function searchOwners(q: string) {
   })
   return owners
 }
+
+export async function listActivePatientsBrief() {
+  return prisma.patient.findMany({
+    where: { deletedAt: null, status: { in: ["ACTIVO", "EN_TRATAMIENTO"] } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, species: true, breed: true },
+  })
+}

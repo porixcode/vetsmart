@@ -17,19 +17,22 @@ import {
 import { cn } from "@/lib/utils"
 
 interface RecordsTableProps {
-  records:       ClinicalRecordView[]
-  selectedIds:   Set<string>
+  records:        ClinicalRecordView[]
+  selectedIds:    Set<string>
   onToggleSelect: (id: string) => void
-  onToggleAll:   () => void
-  onRowClick:    (record: ClinicalRecordView) => void
-  page:          number
-  pageSize:      number
-  totalCount:    number
-  onPageChange:  (page: number) => void
+  onToggleAll:    () => void
+  onRowClick:     (record: ClinicalRecordView) => void
+  onAnular:       (record: ClinicalRecordView) => void
+  onDownload:     (record: ClinicalRecordView) => void
+  page:           number
+  pageSize:       number
+  totalCount:     number
+  onPageChange:   (page: number) => void
 }
 
 export function RecordsTable({
   records, selectedIds, onToggleSelect, onToggleAll, onRowClick,
+  onAnular, onDownload,
   page, pageSize, totalCount, onPageChange,
 }: RecordsTableProps) {
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -135,12 +138,12 @@ export function RecordsTable({
                             <Eye className="mr-2 size-3.5" strokeWidth={1.5} />
                             Ver detalle
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onDownload(r)}>
                             <Download className="mr-2 size-3.5" strokeWidth={1.5} />
                             Descargar
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">Anular</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => onAnular(r)}>Anular</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

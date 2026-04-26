@@ -88,3 +88,27 @@ export async function createClinicalRecord(
     return { ok: false, error: `No se pudo crear el registro: ${msg}` }
   }
 }
+
+export async function anularClinicalRecord(id: string): Promise<ClinicalRecordActionState> {
+  const user = await requireRole("ADMIN", "VETERINARIO")
+  try {
+    await prisma.clinicalRecord.update({
+      where: { id, deletedAt: null },
+      data: { status: "ANULADO" },
+    })
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        actionType: "UPDATE",
+        module: "Historial Clínico",
+        targetId: id,
+        description: "Anuló registro clínico",
+      },
+    })
+    revalidatePath("/historial-clinico")
+    return { ok: true, id }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Error desconocido"
+    return { ok: false, error: `No se pudo anular: ${msg}` }
+  }
+}
