@@ -228,3 +228,102 @@ export async function updateProduct(
     return { ok: false, error: `No se pudo actualizar: ${err?.message ?? "Error desconocido"}` }
   }
 }
+
+export async function deleteProduct(id: string): Promise<InventoryActionState> {
+  const user = await requireRole("ADMIN", "VETERINARIO")
+  try {
+    const product = await prisma.product.update({
+      where: { id, deletedAt: null },
+      data:  { deletedAt: new Date(), status: "DESCONTINUADO" },
+    })
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id, actionType: "DELETE", module: "Inventario",
+        targetId: product.id, description: `Eliminó producto ${product.name}`,
+      },
+    })
+    revalidatePath("/inventario")
+    return { ok: true, id: product.id }
+  } catch (err: any) {
+    return { ok: false, error: `No se pudo eliminar: ${err?.message ?? "Error desconocido"}` }
+  }
+}
+
+export async function exportProducts(ids?: string[]): Promise<{ ok: true; csv: string } | { ok: false; error: string }> {
+  try {
+    const where: Record<string, unknown> = { deletedAt: null }
+    if (ids && ids.length > 0) where.id = { in: ids }
+
+    const products = await prisma.product.findMany({ where, orderBy: { name: "asc" } })
+    const header = ["Código","Nombre","Categoría","Marca","Unidad","Stock actual","Stock mínimo","Precio compra","Precio venta","Estado"]
+    const rows = products.map(p => [
+      p.code, p.name,
+      p.category, p.brand ?? "", p.unit,
+      String(p.currentStock), String(p.minimumStock),
+      String(p.purchasePrice), String(p.salePrice),
+      p.status,
+    ])
+    const csv = [header, ...rows].map(line => line.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n")
+    return { ok: true, csv: "\uFEFF" + csv }
+  } catch (err) {
+    return { ok: false, error: `Error al exportar: ${err instanceof Error ? err.message : "Error"}` }
+  }
+}
+
+export async function importProducts(csv: string): Promise<{ ok: true; count: number } | { ok: false; error: string; row?: number }> {
+  await requireRole("ADMIN", "VETERINARIO")
+  try {
+    const lines = csv.split("\n").filter(l => l.trim())
+    if (lines.length < 2) return { ok: false, error: "CSV vacío o sin datos" }
+
+    const colMap: Record<string, number> = {}
+    lines[0].split(",").forEach((h, i) => { colMap[h.replace(/"/g, "").trim()] = i })
+    if (!("Nombre" in colMap)) return { ok: false, error: `Columna "Nombre" no encontrada` }
+
+    let count = 0
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(",").map(v => v.replace(/^"|"$/g, "").trim())
+      const name = vals[colMap["Nombre"]] ?? ""
+      const code = vals[colMap["Código"]] ?? `IMP-${Date.now()}-${i}`
+      if (!name) continue
+
+      const catLabel = vals[colMap["Categoría"]] ?? "Medicamentos"
+      const category = catLabel === "Medicamentos" ? "MEDICAMENTOS" as const
+        : catLabel === "Vacunas" ? "VACUNAS" as const
+        : catLabel === "Antiparasitarios" ? "ANTIPARASITARIOS" as const
+        : catLabel === "Alimentos" ? "ALIMENTOS" as const
+        : catLabel === "Accesorios" ? "ACCESORIOS" as const
+        : catLabel === "Instrumental" ? "INSTRUMENTAL" as const
+        : "CONSUMIBLES" as const
+
+      const statusLabel = vals[colMap["Estado"]] ?? "Activo"
+      const status = statusLabel === "Activo" ? "ACTIVO" as const
+        : statusLabel === "Stock bajo" ? "STOCK_BAJO" as const
+        : statusLabel === "Agotado" ? "AGOTADO" as const
+        : "ACTIVO" as const
+
+      try {
+        await (prisma.product.create as any)({
+          data: {
+            code,
+            name,
+            category,
+            brand: vals[colMap["Marca"]] ?? null,
+            unit: vals[colMap["Unidad"]] ?? "unidad",
+            currentStock: Number(vals[colMap["Stock actual"]]) || 0,
+            minimumStock: Number(vals[colMap["Stock mínimo"]]) || 0,
+            purchasePrice: Number(vals[colMap["Precio compra"]]) || 0,
+            salePrice: Number(vals[colMap["Precio venta"]]) || 0,
+            status,
+          },
+        })
+        count++
+      } catch { continue }
+    }
+
+    revalidatePath("/inventario")
+    return { ok: true, count }
+  } catch (err) {
+    return { ok: false, error: `Error al importar: ${err instanceof Error ? err.message : "Error"}` }
+  }
+}

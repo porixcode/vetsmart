@@ -2,39 +2,33 @@
 
 import * as React from "react"
 import { AlertCircle, Upload, Download, X, FileText } from "lucide-react"
-import { importPatients } from "@/lib/actions/patients"
+import { importProducts } from "@/lib/actions/inventory"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
-interface ImportPatientModalProps {
+interface ImportProductModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
 }
 
 const CSV_COLUMNS = [
-  { field: "Nombre", req: true, desc: "Nombre del paciente" },
-  { field: "Especie", req: false, desc: "Canino, Felino, Ave, Roedor, Reptil, Otro" },
-  { field: "Raza", req: false, desc: "Golden Retriever, Mestizo, etc." },
-  { field: "Sexo", req: false, desc: "Macho / Hembra" },
-  { field: "Fecha Nacimiento", req: false, desc: "Formato: YYYY-MM-DD" },
-  { field: "Peso (kg)", req: false, desc: "Número decimal (ej: 32.5)" },
-  { field: "Color", req: false, desc: "Color del pelaje o plumaje" },
-  { field: "Esterilizado", req: false, desc: "Sí / No" },
-  { field: "Microchip", req: false, desc: "Código del microchip" },
-  { field: "Alergias", req: false, desc: "Separar con punto y coma (;)" },
-  { field: "Condiciones", req: false, desc: "Condiciones preexistentes (;)" },
-  { field: "Notas", req: false, desc: "Observaciones adicionales" },
-  { field: "Propietario", req: false, desc: "Nombre del dueño" },
-  { field: "Teléfono", req: false, desc: "Número de contacto" },
-  { field: "Email", req: false, desc: "Correo electrónico" },
-  { field: "Cédula", req: false, desc: "Documento de identidad" },
+  { field: "Código", req: false, desc: "Código único del producto" },
+  { field: "Nombre", req: true, desc: "Nombre del producto" },
+  { field: "Categoría", req: false, desc: "Medicamentos, Vacunas, Alimentos, etc." },
+  { field: "Marca", req: false, desc: "Marca comercial" },
+  { field: "Unidad", req: false, desc: "unidad, ml, mg, tableta, etc." },
+  { field: "Stock actual", req: false, desc: "Cantidad en inventario" },
+  { field: "Stock mínimo", req: false, desc: "Mínimo antes de alertar" },
+  { field: "Precio compra", req: false, desc: "Precio de compra en COP" },
+  { field: "Precio venta", req: false, desc: "Precio de venta en COP" },
+  { field: "Estado", req: false, desc: "Activo, Stock bajo, Agotado, Descontinuado" },
 ]
 
-export function ImportPatientModal({ open, onOpenChange, onSuccess }: ImportPatientModalProps) {
+export function ImportProductModal({ open, onOpenChange, onSuccess }: ImportProductModalProps) {
   const [file, setFile] = React.useState<File | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [result, setResult] = React.useState<{ ok: boolean; message: string } | null>(null)
@@ -42,37 +36,32 @@ export function ImportPatientModal({ open, onOpenChange, onSuccess }: ImportPati
 
   const handleImport = async () => {
     if (!file) return
-    setLoading(true)
-    setResult(null)
-
+    setLoading(true); setResult(null)
     try {
       const text = await file.text()
-      const res = await importPatients(text)
+      const res = await importProducts(text)
       if (res.ok) {
-        setResult({ ok: true, message: `${res.count} pacientes importados correctamente.` })
-        onSuccess?.()
-        setTimeout(() => onOpenChange(false), 1500)
+        setResult({ ok: true, message: `${res.count} productos importados correctamente.` })
+        onSuccess?.(); setTimeout(() => onOpenChange(false), 1500)
       } else {
         setResult({ ok: false, message: res.error })
       }
     } catch (err) {
-      setResult({ ok: false, message: `Error al leer archivo: ${err instanceof Error ? err.message : "Error"}` })
-    } finally {
-      setLoading(false)
-    }
+      setResult({ ok: false, message: `Error: ${err instanceof Error ? err.message : "Error"}` })
+    } finally { setLoading(false) }
   }
 
   const downloadTemplate = () => {
     const header = CSV_COLUMNS.map(c => c.field)
     const rows = [
       header,
-      ["Max","Canino","Golden Retriever","Macho","2020-03-15","32.5","Dorado","Sí","ABC123","Ninguna","Displasia cadera","","Juan Pérez","3001234567","juan@mail.com","1234567890"],
-      ["Luna","Felino","Siamés","Hembra","2022-07-01","4.2","Crema","No","","","","","María García","3107654321","maria@mail.com","9876543210"],
+      ["MED-001","Amoxicilina 500mg","Medicamentos","Genfar","tableta","100","20","15000","25000","Activo"],
+      ["VAC-002","Vacuna Triple Felina","Vacunas","Zoetis","dosis","50","10","35000","55000","Activo"],
     ]
     const csv = rows.map(line => line.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n")
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })
     const a = document.createElement("a")
-    a.href = URL.createObjectURL(blob); a.download = "plantilla-pacientes.csv"; a.click()
+    a.href = URL.createObjectURL(blob); a.download = "plantilla-productos.csv"; a.click()
     URL.revokeObjectURL(a.href)
   }
 
@@ -82,9 +71,9 @@ export function ImportPatientModal({ open, onOpenChange, onSuccess }: ImportPati
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Importar pacientes desde CSV</DialogTitle>
+          <DialogTitle>Importar productos desde CSV</DialogTitle>
           <DialogDescription>
-            Sube un archivo CSV con los datos de los pacientes. Solo la columna <strong>Nombre</strong> es obligatoria.
+            Sube un archivo CSV con los datos de los productos. Solo la columna <strong>Nombre</strong> es obligatoria.
           </DialogDescription>
         </DialogHeader>
 
@@ -106,12 +95,8 @@ export function ImportPatientModal({ open, onOpenChange, onSuccess }: ImportPati
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => fileRef.current?.click()}>
-                    Cambiar
-                  </Button>
-                  <button onClick={clearFile} className="rounded-md p-1 text-muted-foreground hover:bg-muted transition-colors">
-                    <X className="size-4" strokeWidth={1.5} />
-                  </button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => fileRef.current?.click()}>Cambiar</Button>
+                  <button onClick={clearFile} className="rounded-md p-1 text-muted-foreground hover:bg-muted transition-colors"><X className="size-4" strokeWidth={1.5} /></button>
                 </div>
               </div>
             )}
@@ -128,14 +113,13 @@ export function ImportPatientModal({ open, onOpenChange, onSuccess }: ImportPati
             <div className="flex items-center justify-between border-b px-3 py-2 bg-muted/30">
               <p className="text-xs font-medium">Columnas del CSV</p>
               <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1" onClick={downloadTemplate}>
-                <Download className="size-3" strokeWidth={1.5} />
-                Plantilla
+                <Download className="size-3" strokeWidth={1.5} /> Plantilla
               </Button>
             </div>
             <div className="max-h-40 overflow-y-auto divide-y">
               {CSV_COLUMNS.map(col => (
                 <div key={col.field} className="flex items-center gap-2 px-3 py-1.5 text-xs">
-                  <span className="font-medium min-w-[140px] shrink-0">{col.field}</span>
+                  <span className="font-medium min-w-[120px] shrink-0">{col.field}</span>
                   <span className="text-muted-foreground truncate">{col.desc}</span>
                   {col.req && <Badge variant="outline" className="text-[9px] h-4 ml-auto shrink-0">Requerido</Badge>}
                 </div>
@@ -145,9 +129,7 @@ export function ImportPatientModal({ open, onOpenChange, onSuccess }: ImportPati
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancelar
-          </Button>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>Cancelar</Button>
           <Button onClick={handleImport} disabled={!file || loading} className="min-w-[100px]">
             {loading ? "Importando…" : "Importar"}
           </Button>
