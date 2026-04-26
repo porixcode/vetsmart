@@ -2,10 +2,12 @@
 
 import * as React from "react"
 import { Plus, X, Copy, Clock, Wifi } from "lucide-react"
-import { defaultSchedule, DAYS, type DaySchedule, type DayShift } from "@/lib/data/config"
+import { setConfigJSON } from "@/lib/actions/config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+
+const DAYS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"]
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
@@ -109,9 +111,26 @@ function DayCard({
   )
 }
 
-export function SectionSchedule() {
-  const [schedule, setSchedule] = React.useState<Record<string, DaySchedule>>(() =>
-    JSON.parse(JSON.stringify(defaultSchedule))
+interface DayShift { start: string; end: string }
+interface DaySchedule { isOpen: boolean; shifts: DayShift[]; maxPerHour: number }
+
+const defaultSchedule: Record<string, DaySchedule> = {
+  Lunes: { isOpen:true, shifts:[{start:"07:00",end:"12:00"},{start:"14:00",end:"18:00"}], maxPerHour:4 },
+  Martes: { isOpen:true, shifts:[{start:"07:00",end:"12:00"},{start:"14:00",end:"18:00"}], maxPerHour:4 },
+  Miércoles: { isOpen:true, shifts:[{start:"07:00",end:"12:00"},{start:"14:00",end:"18:00"}], maxPerHour:4 },
+  Jueves: { isOpen:true, shifts:[{start:"07:00",end:"12:00"},{start:"14:00",end:"18:00"}], maxPerHour:4 },
+  Viernes: { isOpen:true, shifts:[{start:"07:00",end:"12:00"},{start:"14:00",end:"18:00"}], maxPerHour:4 },
+  Sábado: { isOpen:true, shifts:[{start:"08:00",end:"13:00"}], maxPerHour:3 },
+  Domingo: { isOpen:false, shifts:[], maxPerHour:0 },
+}
+
+interface SectionScheduleProps {
+  schedule?: Record<string, DaySchedule>
+}
+
+export function SectionSchedule({ schedule: initialSchedule }: SectionScheduleProps) {
+  const [schedule, setSchedule] = React.useState<Record<string, DaySchedule>>(
+    initialSchedule ?? defaultSchedule
   )
   const [urgencies, setUrgencies] = React.useState(false)
   const [onlineBooking, setOnlineBooking] = React.useState(true)
@@ -219,7 +238,7 @@ export function SectionSchedule() {
 
       <div className="border-t border-border bg-background px-6 py-3 flex items-center justify-end gap-3">
         <Button variant="ghost" size="sm" className="h-8 text-xs" disabled={!isDirty}>Descartar cambios</Button>
-        <Button size="sm" className="h-8 text-xs" disabled={!isDirty} onClick={() => setIsDirty(false)}>Guardar cambios</Button>
+        <Button size="sm" className="h-8 text-xs" disabled={!isDirty} onClick={async () => { await setConfigJSON("schedule", schedule); setIsDirty(false) }}>Guardar cambios</Button>
       </div>
     </div>
   )

@@ -927,3 +927,11 @@ model AuditLog {
   @@index([actionType])
   @@index([createdAt])
 }
+
+model ClinicConfig {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String @db.Text
+
+  @@index([key])
+}

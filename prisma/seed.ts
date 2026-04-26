@@ -64,6 +64,7 @@ async function reset() {
   await prisma.holiday.deleteMany()
   await prisma.room.deleteMany()
   await prisma.branch.deleteMany()
+  await prisma.clinicConfig.deleteMany()
   await prisma.clinic.deleteMany()
   await prisma.session.deleteMany()
   await prisma.account.deleteMany()
@@ -600,6 +601,35 @@ async function main() {
   await seedVaccinationsAndDewormings(patients, users.vets)
   await seedInventory([...users.vets, ...users.receps], users.admins)
   await seedAuditLog([...users.admins, ...users.vets, ...users.receps])
+
+  // ─── Clinic config ──────────────────────────────────────────
+  const clinicConfigs: Array<{ key: string; value: any }> = [
+    { key: "clinic_info", value: {
+      legalName: "SERMEC Veterinaria S.A.S.", tradeName: "SERMEC", nit: "901.234.567-8",
+      taxRegime: "Régimen ordinario", slogan: "Cuidamos a quienes más quieres",
+      website: "https://www.sermec.com.co", phone: "608-555-0100", whatsapp: "+57 310-555-0100",
+      emailGeneral: "info@sermec.com.co", emailSupport: "soporte@sermec.com.co", emailBilling: "facturacion@sermec.com.co",
+      instagram: "https://instagram.com/sermec_vet", facebook: "https://facebook.com/sermecveterinaria",
+      country: "Colombia", department: "Meta", city: "Villavicencio", address: "Cra. 30 #42-15",
+      postalCode: "500001", foundingYear: 2014, employees: 18, clinicType: "General",
+      species: ["Caninos", "Felinos", "Aves", "Exóticos"],
+    }},
+    { key: "schedule", value: {
+      Lunes: { isOpen: true, shifts: [{ start: "07:00", end: "12:00" }, { start: "14:00", end: "18:00" }], maxPerHour: 4 },
+      Martes: { isOpen: true, shifts: [{ start: "07:00", end: "12:00" }, { start: "14:00", end: "18:00" }], maxPerHour: 4 },
+      Miércoles: { isOpen: true, shifts: [{ start: "07:00", end: "12:00" }, { start: "14:00", end: "18:00" }], maxPerHour: 4 },
+      Jueves: { isOpen: true, shifts: [{ start: "07:00", end: "12:00" }, { start: "14:00", end: "18:00" }], maxPerHour: 4 },
+      Viernes: { isOpen: true, shifts: [{ start: "07:00", end: "12:00" }, { start: "14:00", end: "18:00" }], maxPerHour: 4 },
+      Sábado: { isOpen: true, shifts: [{ start: "08:00", end: "13:00" }], maxPerHour: 3 },
+      Domingo: { isOpen: false, shifts: [], maxPerHour: 0 },
+    }},
+  ]
+
+  for (const cfg of clinicConfigs) {
+    await prisma.clinicConfig.create({
+      data: { key: cfg.key, value: JSON.stringify(cfg.value) },
+    })
+  }
 
   console.log("\n✅ Seed completado.")
   console.log(`\n🔑 Credenciales iniciales:`)

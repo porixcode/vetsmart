@@ -2,8 +2,18 @@
 
 import * as React from "react"
 import { CheckCircle2, AlertCircle, Upload, Globe, Phone, Mail, Instagram, Facebook, MapPin } from "lucide-react"
-import { clinicInfo, SPECIES_OPTIONS, TAX_REGIMES, CLINIC_TYPES, type TaxRegime, type ClinicType } from "@/lib/data/config"
+import { setConfigJSON } from "@/lib/actions/config"
 import { Button } from "@/components/ui/button"
+
+const SPECIES_OPTIONS = ["Caninos", "Felinos", "Aves", "Exóticos", "Reptiles", "Bovinos", "Equinos"]
+const TAX_REGIMES = ["Régimen simple", "Régimen ordinario", "Gran contribuyente"] as const
+const CLINIC_TYPES = ["General", "Especializada", "Móvil", "Hospitalaria"] as const
+type TaxRegime = typeof TAX_REGIMES[number]
+type ClinicType = typeof CLINIC_TYPES[number]
+
+interface SectionGeneralProps {
+  clinicInfo: any
+}
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -33,12 +43,11 @@ function Field({ label, children, optional }: { label: string; children: React.R
   )
 }
 
-export function SectionGeneral() {
+export function SectionGeneral({ clinicInfo = {} }: SectionGeneralProps) {
   const [isDirty, setIsDirty] = React.useState(false)
   const [isSaved, setIsSaved] = React.useState(true)
 
-  // Form state derived from clinicInfo
-  const [legalName, setLegalName] = React.useState(clinicInfo.legalName)
+  const [legalName, setLegalName] = React.useState(clinicInfo.legalName ?? "")
   const [tradeName, setTradeName] = React.useState(clinicInfo.tradeName)
   const [nit, setNit] = React.useState(clinicInfo.nit)
   const [taxRegime, setTaxRegime] = React.useState<TaxRegime>(clinicInfo.taxRegime)
@@ -62,7 +71,16 @@ export function SectionGeneral() {
 
   const markDirty = () => { setIsDirty(true); setIsSaved(false) }
 
-  const handleSave = () => { setIsDirty(false); setIsSaved(true) }
+  const handleSave = async () => {
+    const info = {
+      legalName, tradeName, nit, taxRegime, slogan, website, phone, whatsapp,
+      emailGeneral, emailSupport, emailBilling, instagram, facebook,
+      department, city, address, postalCode: postal, foundingYear: Number(foundingYear),
+      employees: Number(employees), clinicType, species,
+    }
+    await setConfigJSON("clinic_info", info)
+    setIsDirty(false); setIsSaved(true)
+  }
   const handleDiscard = () => {
     setLegalName(clinicInfo.legalName); setTradeName(clinicInfo.tradeName); setNit(clinicInfo.nit)
     setTaxRegime(clinicInfo.taxRegime); setSlogan(clinicInfo.slogan); setWebsite(clinicInfo.website)
