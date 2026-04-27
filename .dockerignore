@@ -9,7 +9,7 @@ node_modules
 .env.production
 !.env.example
 *.log
-.claude
+.ai-config
 .vscode
 .idea
 .DS_Store

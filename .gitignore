@@ -79,10 +79,8 @@ docker-compose.override.yml
 .docker/
 
 # =========================
-# 🤖 Herramientas de IA & LLM (Configs, Caché & Sesiones)
+# 🤖 Herramientas de IA & LLM
 # =========================
-.claude/
-.claude-cache/
 .anthropic/
 .openai/
 .openai-cache/
