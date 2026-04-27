@@ -97,7 +97,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           module:      "Sistema",
           description: "Cierre de sesión",
         },
-      }).catch(err => console.error("signOut event error:", err))
+      }).catch((err: unknown) => console.error("signOut event error:", err))
     },
   },
 })
