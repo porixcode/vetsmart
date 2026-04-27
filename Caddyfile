@@ -1,0 +1,4 @@
+vetsmart.porix.cloud {
+    reverse_proxy app:3000
+    encode gzip
+}
