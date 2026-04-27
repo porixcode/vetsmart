@@ -70,6 +70,9 @@ const listInclude = {
   attachments: {
     select: { name: true, type: true, url: true, size: true },
   },
+  signedBy: {
+    select: { name: true },
+  },
 }
 
 function mapListRecord(r: Record<string, any>): ClinicalRecordView {
@@ -131,6 +134,8 @@ function mapListRecord(r: Record<string, any>): ClinicalRecordView {
     duration: null,
     room: null,
     appointmentId: r.appointmentId,
+    signedBy: r.signedBy?.name ?? null,
+    signedAt: r.signedAt ?? null,
   }
 }
 

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { PreviewDialog } from "@/components/reports/preview-dialog"
 import { downloadCSV } from "@/lib/csv-utils"
+import { generateExcelReport } from "@/lib/actions/reports"
 import { cn } from "@/lib/utils"
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
@@ -106,9 +107,22 @@ export function GeneratorTab() {
 
   const canGenerate = selectedTemplate && period && format && selectedSections.length > 0
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!canGenerate || !selectedTemplate) return
     const tidyName = reportName.replace(/[^a-zA-Z0-9-_\s]/g, "").replace(/\s+/g, "-") || "reporte"
+
+    if (format === "Excel (.xlsx)") {
+      const lines = generateReportCSV(selectedTemplate, selectedSections, period)
+      const res = await generateExcelReport(lines[0], lines.slice(1), template?.name ?? "Reporte")
+      if (res.ok) {
+        const blob = new Blob([new Uint8Array(res.buffer)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+        const a = document.createElement("a")
+        a.href = URL.createObjectURL(blob); a.download = `${tidyName}.xlsx`; a.click()
+        URL.revokeObjectURL(a.href)
+      }
+      setShowPreview(false)
+      return
+    }
 
     if (format === "PDF") {
       const rows = generateReportCSV(selectedTemplate, selectedSections, period)

@@ -82,6 +82,8 @@ export interface ClinicalRecordView {
   duration:      number | null
   room:          string | null
   appointmentId: string | null
+  signedBy:      string | null
+  signedAt:      Date | null
 }
 
 export interface ClinicalRecordSearch {

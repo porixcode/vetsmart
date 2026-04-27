@@ -6,10 +6,11 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import {
   X, Copy as CopyIcon, Calendar, Clock, User, Weight, Thermometer, Heart, Wind,
-  FileText, Image, FlaskConical, X as XRay, Eye, Printer, Edit,
+  FileText, Image, FlaskConical, X as XRay, Eye, Printer, Edit, PenBox, CheckCircle2,
 } from "lucide-react"
 import type { ClinicalRecordView } from "@/lib/types/clinical-records-view"
 import { ATTENTION_CONFIG, STATUS_CONFIG } from "@/lib/types/clinical-records-view"
+import { finalizarClinicalRecord, firmarClinicalRecord } from "@/lib/actions/clinical-records"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -79,6 +80,12 @@ export function RecordDetailDrawer({ record, isOpen, onClose }: RecordDetailDraw
               <Badge variant="secondary" className="text-[10px] gap-1">
                 <Eye className="size-3" strokeWidth={1.5} />
                 {record.attachments} adjunto{record.attachments !== 1 ? "s" : ""}
+              </Badge>
+            )}
+            {record.signedBy && record.signedAt && (
+              <Badge variant="outline" className="text-[10px] gap-1 text-emerald-600 border-emerald-200 bg-emerald-50">
+                <CheckCircle2 className="size-3" strokeWidth={1.5} />
+                Firmado por {record.signedBy}
               </Badge>
             )}
           </div>
@@ -247,12 +254,27 @@ export function RecordDetailDrawer({ record, isOpen, onClose }: RecordDetailDraw
             Imprimir
           </Button>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline" size="sm" className="h-8 text-xs gap-1.5"
-              onClick={() => { onClose(); router.push(`/pacientes/${record.patientId}`) }}
-            >
+            {record.status === "Borrador" && (
+              <Button size="sm" className="h-8 text-xs gap-1.5" onClick={async () => {
+                await finalizarClinicalRecord(record.id); router.refresh()
+              }}>
+                <PenBox className="size-3.5" strokeWidth={1.5} />
+                Finalizar
+              </Button>
+            )}
+            {record.status === "Finalizado" && (
+              <Button size="sm" className="h-8 text-xs gap-1.5" onClick={async () => {
+                if (confirm("¿Firmar digitalmente este registro? Una vez firmado no podrá modificarse."))
+                  await firmarClinicalRecord(record.id); router.refresh()
+              }}>
+                <CheckCircle2 className="size-3.5" strokeWidth={1.5} />
+                Firmar
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"
+              onClick={() => { onClose(); router.push(`/pacientes/${record.patientId}`) }}>
               <Edit className="size-3.5" strokeWidth={1.5} />
-              Editar en paciente
+              Ir a paciente
             </Button>
           </div>
         </div>

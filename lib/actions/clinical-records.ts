@@ -112,3 +112,56 @@ export async function anularClinicalRecord(id: string): Promise<ClinicalRecordAc
     return { ok: false, error: `No se pudo anular: ${msg}` }
   }
 }
+
+export async function finalizarClinicalRecord(id: string): Promise<ClinicalRecordActionState> {
+  const user = await requireRole("ADMIN", "VETERINARIO")
+  try {
+    const record = await prisma.clinicalRecord.findUnique({ where: { id, deletedAt: null } })
+    if (!record) return { ok: false, error: "Registro no encontrado" }
+    if (record.status !== "BORRADOR") return { ok: false, error: "Solo se puede finalizar un registro en estado Borrador" }
+
+    await prisma.clinicalRecord.update({
+      where: { id },
+      data: { status: "FINALIZADO" },
+    })
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id, actionType: "UPDATE", module: "Historial Clínico",
+        targetId: id, description: "Finalizó registro clínico",
+      },
+    })
+    revalidatePath("/historial-clinico")
+    revalidatePath(`/pacientes/${record.patientId}`)
+    return { ok: true, id }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Error desconocido"
+    return { ok: false, error: `No se pudo finalizar: ${msg}` }
+  }
+}
+
+export async function firmarClinicalRecord(id: string): Promise<ClinicalRecordActionState> {
+  const user = await requireRole("ADMIN", "VETERINARIO")
+  try {
+    const record = await prisma.clinicalRecord.findUnique({ where: { id, deletedAt: null } })
+    if (!record) return { ok: false, error: "Registro no encontrado" }
+    if (record.status !== "FINALIZADO") return { ok: false, error: "Solo se puede firmar un registro en estado Finalizado" }
+
+    const hash = `firma-${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    await prisma.clinicalRecord.update({
+      where: { id },
+      data: { status: "FIRMADO", signatureHash: hash, signedAt: new Date(), signedById: user.id },
+    })
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id, actionType: "SIGN", module: "Historial Clínico",
+        targetId: id, description: `Firmó registro clínico digitalmente`,
+      },
+    })
+    revalidatePath("/historial-clinico")
+    revalidatePath(`/pacientes/${record.patientId}`)
+    return { ok: true, id }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Error desconocido"
+    return { ok: false, error: `No se pudo firmar: ${msg}` }
+  }
+}

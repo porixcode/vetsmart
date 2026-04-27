@@ -154,6 +154,7 @@ export async function getPatientDetail(id: string): Promise<PatientDetailBundle 
         veterinarian: { select: { name: true } },
         diagnoses:    { select: { cie10: true, description: true } },
         attachments:  { select: { url: true }, take: 5 },
+        signedBy:     { select: { name: true } },
       },
     }),
     prisma.vaccination.findMany({
