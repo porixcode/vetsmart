@@ -1,5 +1,39 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <style>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="99.52282"
+   height="99.52282"
+   viewBox="0 0 99.52282 99.52282"
+   fill="none"
+   version="1.1"
+   id="svg6"
+   sodipodi:docname="icon.svg"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs6" />
+  <sodipodi:namedview
+     id="namedview6"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="2.2611111"
+     inkscape:cx="19.68059"
+     inkscape:cy="46.437346"
+     inkscape:window-width="1920"
+     inkscape:window-height="1016"
+     inkscape:window-x="0"
+     inkscape:window-y="34"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg6" />
+  <style
+     id="style1">
     @media (prefers-color-scheme: light) {
       .bg { fill: #2563EB; }
       .fg { fill: white; }
@@ -9,17 +43,82 @@
       .fg { fill: white; }
     }
   </style>
-  <rect class="bg" width="180" height="180" rx="37" />
-  <g transform="translate(90 95) scale(1.8)">
+  <rect
+     class="bg"
+     width="99.52282"
+     height="99.52282"
+     rx="20.457468"
+     id="rect1"
+     x="0"
+     y="0"
+     style="fill:#003380;stroke-width:0.552905" />
+  <g
+     transform="matrix(2.2758691,0,0,2.2758691,49.86026,52.466553)"
+     id="g6">
     <!-- Central pad -->
-    <ellipse cx="0" cy="6" rx="10" ry="8" class="fg" />
+    <ellipse
+       cx="0"
+       cy="6.1538439"
+       rx="10"
+       ry="9.25"
+       class="fg"
+       id="ellipse1"
+       style="fill:#ff00ff;stroke-width:1.07529" />
     <!-- Toes -->
-    <ellipse cx="-13" cy="-8" rx="5" ry="6" class="fg" transform="rotate(-20 -13 -8)" />
-    <ellipse cx="13" cy="-8" rx="5" ry="6" class="fg" transform="rotate(20 13 -8)" />
-    <ellipse cx="-6" cy="-15" rx="4.5" ry="5.5" class="fg" transform="rotate(-35 -6 -15)" />
-    <ellipse cx="6" cy="-15" rx="4.5" ry="5.5" class="fg" transform="rotate(35 6 -15)" />
+    <ellipse
+       cx="-10.757401"
+       cy="-8.4537401"
+       rx="5"
+       ry="6"
+       class="fg"
+       transform="rotate(-20)"
+       id="ellipse2"
+       style="fill:#ff00ff" />
+    <ellipse
+       cx="10.675773"
+       cy="-8.4240294"
+       rx="5"
+       ry="6"
+       class="fg"
+       transform="rotate(20)"
+       id="ellipse3"
+       style="fill:#ff00ff" />
+    <ellipse
+       cx="3.003459"
+       cy="-13.265008"
+       rx="4.5"
+       ry="5.5"
+       class="fg"
+       transform="rotate(-35)"
+       id="ellipse4"
+       style="fill:#ff00ff" />
+    <ellipse
+       cx="-2.8869355"
+       cy="-13.346599"
+       rx="4.5"
+       ry="5.5"
+       class="fg"
+       transform="rotate(35)"
+       id="ellipse5"
+       style="fill:#ff00ff" />
     <!-- Medical cross inside pad -->
-    <rect x="-2.5" y="-1" width="5" height="9" rx="1" fill="#2563EB" />
-    <rect x="-4.5" y="1" width="9" height="5" rx="1" fill="#2563EB" />
+    <rect
+       x="-1.25"
+       y="1.5"
+       width="2.5"
+       height="9"
+       rx="0.5"
+       fill="#2563eb"
+       id="rect5"
+       style="stroke-width:0.707107" />
+    <rect
+       x="-4.5"
+       y="4.75"
+       width="9"
+       height="2.5"
+       rx="1"
+       fill="#2563eb"
+       id="rect6"
+       style="stroke-width:0.707107" />
   </g>
 </svg>
