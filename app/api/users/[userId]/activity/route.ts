@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 
@@ -22,7 +23,9 @@ export async function GET(
     },
   })
 
-  return NextResponse.json(entries.map(e => ({
+  type Entry = (typeof entries)[number]
+
+  return NextResponse.json(entries.map((e: Entry) => ({
     id:          e.id,
     userId:      e.userId,
     userName:    e.user?.name ?? null,

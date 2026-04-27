@@ -22,7 +22,9 @@ export async function GET(
     },
   })
 
-  return NextResponse.json(sessions.map(s => ({
+  type Session = (typeof sessions)[number]
+
+  return NextResponse.json(sessions.map((s: Session) => ({
     id:           s.id,
     userId:       s.userId,
     userName:     s.user.name,
