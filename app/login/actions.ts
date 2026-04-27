@@ -30,9 +30,13 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   const ok = await bcrypt.compare(password, user.passwordHash)
   if (!ok) return { error: "Credenciales inválidas" }
 
+  const cookieStore = await cookies()
+  const isSecure = process.env.NODE_ENV === "production"
+  const cookieName = isSecure ? "__Secure-authjs.session-token" : "authjs.session-token"
+
   const jwt = await encode({
     secret: process.env.NEXTAUTH_SECRET!,
-    salt:   "authjs.session-token",
+    salt:   cookieName,
     token: {
       id:    user.id,
       email: user.email,
@@ -45,9 +49,6 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     },
   })
 
-  const cookieStore = await cookies()
-  const isSecure = process.env.NODE_ENV === "production"
-  const cookieName = isSecure ? "__Secure-authjs.session-token" : "authjs.session-token"
   cookieStore.set(cookieName, jwt, {
     path:     "/",
     httpOnly: true,
