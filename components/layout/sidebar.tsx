@@ -123,7 +123,7 @@ export function Sidebar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/configuracion" className="gap-2">
+              <Link href="/perfil" className="gap-2">
                 <UserIcon className="h-4 w-4" strokeWidth={1.5} />
                 Mi perfil
               </Link>
