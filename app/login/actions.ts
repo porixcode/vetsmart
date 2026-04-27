@@ -46,12 +46,14 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   })
 
   const cookieStore = await cookies()
-  cookieStore.set("authjs.session-token", jwt, {
+  const isSecure = process.env.NODE_ENV === "production"
+  const cookieName = isSecure ? "__Secure-authjs.session-token" : "authjs.session-token"
+  cookieStore.set(cookieName, jwt, {
     path:     "/",
     httpOnly: true,
     sameSite: "lax",
     maxAge:   30 * 24 * 60 * 60,
-    secure:   process.env.NODE_ENV === "production",
+    secure:   isSecure,
   })
 
   Promise.all([
