@@ -96,7 +96,7 @@ docker-compose.override.yml
 .ai-sessions/
 .llm/
 .llm-cache/
-
+.claude
 # =========================
 # 🔒 Seguridad & Varios
 # =========================
