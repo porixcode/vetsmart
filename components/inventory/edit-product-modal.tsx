@@ -29,11 +29,6 @@ const INITIAL_STATE: InventoryActionState = {}
 
 export function EditProductModal({ open, onOpenChange, onSuccess, product }: EditProductModalProps) {
   const [state, formAction, pending] = useActionState(updateProduct, INITIAL_STATE)
-  const [renderKey, setRenderKey] = React.useState(0)
-
-  React.useEffect(() => {
-    if (open && product) setRenderKey(prev => prev + 1)
-  }, [open, product?.id])
 
   const successHandled = React.useRef(false)
   React.useEffect(() => {
@@ -52,7 +47,7 @@ export function EditProductModal({ open, onOpenChange, onSuccess, product }: Edi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent key={renderKey} className="max-h-[90vh] max-w-xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar producto</DialogTitle>
           <DialogDescription>Actualizar datos de {product.name}</DialogDescription>
@@ -65,7 +60,7 @@ export function EditProductModal({ open, onOpenChange, onSuccess, product }: Edi
           </div>
         )}
 
-        <form key={`f-${renderKey}`} action={formAction} className="space-y-6">
+        <form action={formAction} className="space-y-6">
           <input type="hidden" name="id" value={product.id} />
 
           <div className="grid grid-cols-2 gap-4">

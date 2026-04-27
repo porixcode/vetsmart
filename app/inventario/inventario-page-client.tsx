@@ -68,6 +68,7 @@ export function InventarioPageClient({ initialProducts, initialStats }: Inventar
   const [isNewProductOpen,   setIsNewProductOpen]   = React.useState(false)
   const [isEditProductOpen,  setIsEditProductOpen]  = React.useState(false)
   const [editingProduct,     setEditingProduct]     = React.useState<ProductView | null>(null)
+  const [editRenderKey,      setEditRenderKey]      = React.useState(0)
   const [isImportOpen,       setIsImportOpen]       = React.useState(false)
   const [selectedIds,        setSelectedIds]         = React.useState<Set<string>>(new Set())
   const [confirmDelete,      setConfirmDelete]       = React.useState<ProductView | null>(null)
@@ -132,7 +133,7 @@ export function InventarioPageClient({ initialProducts, initialStats }: Inventar
     if (res.ok) { setConfirmDelete(null); setIsDrawerOpen(false); setSelectedIds(prev => { const s = new Set(prev); s.delete(product.id); return s }); router.refresh() }
   }
 
-  const handleEdit = (product: ProductView) => { setEditingProduct(product); setIsEditProductOpen(true) }
+  const handleEdit = (product: ProductView) => { setEditingProduct(product); setIsEditProductOpen(true); setEditRenderKey(prev => prev + 1) }
 
   return (
     <AppShell>
@@ -349,7 +350,7 @@ export function InventarioPageClient({ initialProducts, initialStats }: Inventar
 
       <NewProductModal open={isNewProductOpen} onOpenChange={setIsNewProductOpen} onSuccess={() => router.refresh()} />
 
-      <EditProductModal open={isEditProductOpen} onOpenChange={setIsEditProductOpen} onSuccess={() => router.refresh()} product={editingProduct} />
+      <EditProductModal key={editRenderKey} open={isEditProductOpen} onOpenChange={setIsEditProductOpen} onSuccess={() => router.refresh()} product={editingProduct} />
 
       <ImportProductModal open={isImportOpen} onOpenChange={setIsImportOpen} onSuccess={() => router.refresh()} />
 
