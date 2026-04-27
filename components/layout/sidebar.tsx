@@ -4,7 +4,6 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
-import type { Role } from "@prisma/client"
 import {
   LayoutDashboard,
   Users,
@@ -32,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { logoutAction } from "@/app/actions/auth"
 
-const ROLE_LABEL: Record<Role, string> = {
+const ROLE_LABEL: Record<string, string> = {
   ADMIN:         "Administrador",
   VETERINARIO:   "Veterinario",
   RECEPCIONISTA: "Recepcionista",

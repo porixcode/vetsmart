@@ -21,7 +21,7 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN bun run build
+RUN bun run db:generate && bun run build
 
 # ─────────────────────────────────────────────────────────────
 # Stage 3: runner — minimal runtime with non-root user
