@@ -59,7 +59,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     prisma.auditLog.create({
       data: { userId: user.id, actionType: "LOGIN" as any, module: "Sistema", description: "Inicio de sesión exitoso" },
     }),
-  ]).catch(err => console.error("login audit error:", err))
+  ]).catch((err: unknown) => console.error("login audit error:", err))
 
   const callbackUrl = typeof raw.callbackUrl === "string" && raw.callbackUrl ? raw.callbackUrl : "/"
   return { redirectTo: callbackUrl }
